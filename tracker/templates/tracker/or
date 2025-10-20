@@ -1,0 +1,188 @@
+{% extends "tracker/base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <div class="container-fluid">
+    <div class="page-title">
+      <div class="row">
+        <div class="col-6"><h4>Dashboard</h4></div>
+        <div class="col-6">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">
+                <svg class="stroke-icon"><use href="../assets/svg/icon-sprite.svg#stroke-home"></use></svg>
+            </a></li>
+            <li class="breadcrumb-item active">Overview</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+    <div class="row g-3">
+      <div class="col-xl-3 col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="f-light f-12 text-uppercase">Total Orders</div>
+                <h4 class="f-w-600 mb-0">{{ total_orders }}</h4>
+              </div>
+              <svg class="fill-icon" width="36" height="36"><use href="../assets/svg/icon-sprite.svg#fill-project"></use></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="f-light f-12 text-uppercase">Active Orders</div>
+                <h4 class="f-w-600 mb-0">{{ active_count }}</h4>
+              </div>
+              <svg class="fill-icon" width="36" height="36"><use href="../assets/svg/icon-sprite.svg#fill-task"></use></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="f-light f-12 text-uppercase">Completed Today</div>
+                <h4 class="f-w-600 mb-0">{{ completed_today_count }}</h4>
+              </div>
+              <svg class="fill-icon" width="36" height="36"><use href="../assets/svg/icon-sprite.svg#fill-check-circle"></use></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-xl-3 col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="f-light f-12 text-uppercase">Customers</div>
+                <h4 class="f-w-600 mb-0">{{ total_customers }}</h4>
+              </div>
+              <svg class="fill-icon" width="36" height="36"><use href="../assets/svg/icon-sprite.svg#fill-user"></use></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-8">
+        <div class="card">
+          <div class="card-header card-no-border"><h5 class="mb-0">Project Statistics</h5></div>
+          <div class="card-body"><div id="orders-trend-chart"></div></div>
+        </div>
+      </div>
+      <div class="col-xl-4">
+        <div class="card">
+          <div class="card-header card-no-border"><h5 class="mb-0">Status Breakdown</h5></div>
+          <div class="card-body">
+            <ul class="list-unstyled m-0">
+              <li class="d-flex justify-content-between py-1"><span>Created</span><span class="f-w-600">{{ status_counts.created|default:0 }}</span></li>
+              <li class="d-flex justify-content-between py-1"><span>Assigned</span><span class="f-w-600">{{ status_counts.assigned|default:0 }}</span></li>
+              <li class="d-flex justify-content-between py-1"><span>In Progress</span><span class="f-w-600">{{ status_counts.in_progress|default:0 }}</span></li>
+              <li class="d-flex justify-content-between py-1"><span>Completed</span><span class="f-w-600">{{ status_counts.completed|default:0 }}</span></li>
+              <li class="d-flex justify-content-between py-1"><span>Cancelled</span><span class="f-w-600">{{ status_counts.cancelled|default:0 }}</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-6">
+        <div class="card">
+          <div class="card-header card-no-border d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">All Project Table</h5>
+            <a href="{% url 'tracker:orders_list' %}" class="f-12">View all</a>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive custom-scrollbar">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for o in recent_orders %}
+                    <tr>
+                      <td class="f-w-600">{{ o.order_number }}</td>
+                      <td><a href="{% url 'tracker:customer_detail' o.customer.id %}">{{ o.customer.full_name }}</a></td>
+                      <td class="text-capitalize">{{ o.type }}</td>
+                      <td class="text-capitalize">{{ o.status }}</td>
+                      <td>{{ o.created_at|date:'Y-m-d H:i' }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="5" class="text-center f-light">No recent orders</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xxl-6">
+        <div class="card">
+          <div class="card-header card-no-border d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Inventory Snapshot</h5>
+            {% if can_manage_inventory %}<a href="{% url 'tracker:inventory_list' %}" class="f-12">Manage</a>{% endif %}
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div class="f-light f-12 text-uppercase">Total Stock</div>
+                  <div class="f-w-600">{{ total_stock }}</div>
+                </div>
+                <hr class="m-0 mb-2">
+              </div>
+              {% for item in inventory_preview %}
+                <div class="col-sm-6">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-truncate">{{ item.name }}{% if item.brand %} ({{ item.brand }}){% endif %}</span>
+                    <span class="f-w-600">{{ item.quantity }}</span>
+                  </div>
+                </div>
+              {% empty %}
+                <div class="col-12 f-light">No inventory items</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function(){
+      try {
+        var charts = JSON.parse('{{ charts_json|escapejs }}');
+        if (window.ApexCharts && document.querySelector('#orders-trend-chart')) {
+          var options = {
+            chart: { type: 'line', height: 300, toolbar: { show: false } },
+            series: [{ name: 'Orders', data: charts.trend.values }],
+            xaxis: { categories: charts.trend.labels, labels: { rotate: -45 } },
+            stroke: { width: 3 },
+            colors: ['#7366ff']
+          };
+          new ApexCharts(document.querySelector('#orders-trend-chart'), options).render();
+        }
+      } catch (e) {}
+    })();
+  </script>
+{% endblock %}

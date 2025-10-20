@@ -1,0 +1,241 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-6">
+        <h4>Reports</h4>
+        <p class="text-muted mb-0">Daily, Weekly, Monthly, Yearly insights</p>
+      </div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Dashboard</a></li>
+          <li class="breadcrumb-item active">Reports</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Page sidebar -->
+    <div class="col-xl-3 col-lg-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Report Period</h5>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled report-period-menu mb-3">
+            <li><a class="d-block py-2 {% if period == 'daily' %}fw-bold text-primary{% endif %}" href="{% url 'tracker:reports' %}?period=daily">Daily</a></li>
+            <li><a class="d-block py-2 {% if period == 'weekly' %}fw-bold text-primary{% endif %}" href="{% url 'tracker:reports' %}?period=weekly">Weekly</a></li>
+            <li><a class="d-block py-2 {% if period == 'monthly' or not period %}fw-bold text-primary{% endif %}" href="{% url 'tracker:reports' %}?period=monthly">Monthly</a></li>
+            <li><a class="d-block py-2 {% if period == 'yearly' %}fw-bold text-primary{% endif %}" href="{% url 'tracker:reports' %}?period=yearly">Yearly</a></li>
+          </ul>
+          <hr>
+          <form class="report-filter-form" method="get" action="{% url 'tracker:reports' %}">
+            <input type="hidden" name="period" value="custom">
+            <div class="mb-3">
+              <label class="form-label">From</label>
+              <input type="date" class="form-control" name="from" value="{{ filters.from|default:export_from }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">To</label>
+              <input type="date" class="form-control" name="to" value="{{ filters.to|default:export_to }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Order Type</label>
+              <select class="form-select" name="type">
+                <option value="all" {% if filters.type == 'all' %}selected{% endif %}>All</option>
+                <option value="service" {% if filters.type == 'service' %}selected{% endif %}>Service</option>
+                <option value="sales" {% if filters.type == 'sales' %}selected{% endif %}>Sales</option>
+                <option value="inquiry" {% if filters.type == 'inquiry' %}selected{% endif %}>Inquiry</option>
+              </select>
+            </div>
+            <div class="d-grid gap-2">
+              <button class="btn btn-primary" type="submit"><i class="fa fa-filter me-1"></i> Apply</button>
+              <a class="btn btn-outline-primary" href="{% url 'tracker:reports_export' %}?from={{ export_from }}&to={{ export_to }}&type={{ filters.type|default:'all' }}">
+                <i class="fa fa-download me-1"></i> Export CSV
+              </a>
+              <a class="btn btn-outline-secondary" href="{% url 'tracker:reports_export_pdf' %}?from={{ export_from }}&to={{ export_to }}&type={{ filters.type|default:'all' }}" target="_blank">
+                <i class="fa fa-file-pdf-o me-1"></i> Export PDF
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="col-xl-9 col-lg-8">
+      <!-- KPI cards -->
+      <div class="row g-3">
+        <div class="col-sm-6 col-lg-3">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <p class="text-muted mb-1">Total Orders</p>
+              <h3 class="mb-0">{{ stats.total|default:0 }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <p class="text-muted mb-1">Completed</p>
+              <h3 class="mb-0 text-success">{{ stats.completed|default:0 }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <p class="text-muted mb-1">In Progress <small></small></p>
+              <h3 class="mb-0 text-warning">{{ stats.in_progress|default:0 }}</h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <p class="text-muted mb-1">Cancelled</p>
+              <h3 class="mb-0 text-danger">{{ stats.cancelled|default:0 }}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row mt-3">
+        <div class="col-lg-7">
+          <div class="card">
+            <div class="card-header"><h5 class="mb-0">Orders Trend</h5></div>
+            <div class="card-body"><div id="trendChart" style="height:320px"></div></div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card mb-3">
+            <div class="card-header">
+              <h6 class="mb-0">By Status</h6>
+           
+            </div>
+            <div class="card-body"><div id="statusChart" style="height:220px"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h6 class="mb-0">By Type</h6></div>
+            <div class="card-body"><div id="typeChart" style="height:220px"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Orders table (preview) -->
+      <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Recent Orders</h5>
+          <a class="btn btn-light btn-sm" href="{% url 'tracker:orders_list' %}">View All</a>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped align-middle" id="reportsTable">
+              <thead>
+                <tr>
+                  <th class="text-center">Truck</th>
+                  <th>Order</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in orders %}
+                <tr>
+                  <td class="text-center"><img class="truck-thumb" src="https://cdn.builder.io/api/v1/image/assets%2Fbebc376cdd2f4ab3aba9527a99ac7787%2F5125af9d931849989d61e52df11234aa?format=webp&width=800" alt="Truck"></td>
+                  <td><a href="{% url 'tracker:order_detail' o.id %}">{{ o.order_number }}</a></td>
+                  <td>{{ o.customer.full_name }}</td>
+                  <td class="text-capitalize">{{ o.type }}</td>
+                  <td><span class="badge {% if o.status == 'completed' %}badge-success{% elif o.status == 'in_progress' %}badge-warning{% elif o.status == 'cancelled' %}badge-danger{% else %}badge-secondary{% endif %}">{{ o.status|title }}</span></td>
+                  <td class="text-capitalize">{{ o.priority }}</td>
+                  <td>{{ o.created_at|date:'Y-m-d H:i' }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted">No data</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load ECharts (CDN) to ensure charts render -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.2/dist/echarts.min.js"></script>
+<script>
+  const charts = JSON.parse('{{ charts_json|default:"{}"|escapejs }}');
+  function pieOption(title, labels, values){
+    return {
+      tooltip: {trigger: 'item'},
+      legend: {bottom: 0},
+      series: [{
+        name: title,
+        type: 'pie',
+        radius: ['40%','70%'],
+        avoidLabelOverlap: false,
+        label: {show: false, position: 'center'},
+        emphasis: {label: {show: true, fontSize: 14, fontWeight: 'bold'}},
+        labelLine: {show: false},
+        data: labels.map((l,i)=>({name: l, value: values[i]||0}))
+      }]
+    }
+  }
+  function lineOption(labels, values){
+    return {
+      tooltip: {trigger:'axis'},
+      xAxis: {type:'category', data: labels},
+      yAxis: {type:'value'},
+      grid: {left: 40, right: 10, top: 20, bottom: 40},
+      series: [{type:'line', data: values, smooth: true, areaStyle: {}}]
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    if(window.echarts){
+      const trend = echarts.init(document.getElementById('trendChart'));
+      // Support multi-series trend: charts.trend.series = [{name, values}, ...]
+      const trendData = charts.trend || {};
+      if (trendData.series && Array.isArray(trendData.series)) {
+        const series = trendData.series.map(s=>({name: s.name, type: 'line', data: s.values, smooth: true}));
+        trend.setOption({
+          tooltip: {trigger:'axis'},
+          legend: {data: trendData.series.map(s=>s.name)},
+          xAxis: {type:'category', data: trendData.labels||[]},
+          yAxis: {type:'value'},
+          grid: {left: 40, right: 10, top: 20, bottom: 40},
+          series: series
+        });
+      } else {
+        trend.setOption(lineOption((trendData||{}).labels||[], (trendData||{}).values||[]));
+      }
+
+      const status = echarts.init(document.getElementById('statusChart'));
+      status.setOption(pieOption('Status', (charts.status||{}).labels||[], (charts.status||{}).values||[]));
+      const type = echarts.init(document.getElementById('typeChart'));
+      type.setOption(pieOption('Type', (charts.type||{}).labels||[], (charts.type||{}).values||[]));
+      window.addEventListener('resize', ()=>{ trend.resize(); status.resize(); type.resize(); });
+    }
+    if (window.jQuery && $.fn.DataTable) {
+      $('#reportsTable').DataTable({pageLength: 10, order:[[5,'desc']]});
+    }
+  });
+</script>
+<!-- DataTables scripts -->
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom.js' %}"></script>
+{% endblock %}

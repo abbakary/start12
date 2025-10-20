@@ -1,0 +1,9 @@
+.tz-phone-group{display:flex;align-items:center;border:1px solid #ced4da;border-radius:.25rem;background:#fff;overflow:hidden}
+.tz-phone-group:focus-within{border-color:var(--theme-default);box-shadow:0 0 0 .2rem rgba(var(--theme-default-rgb),.25)}
+.tz-flag-addon{display:inline-flex;align-items:center;justify-content:center;background:#f8f9fa;border-right:1px solid #ced4da;padding:0 .5rem;height:100%}
+.tz-flag{width:20px;height:14px;display:block}
+.tz-phone-group input{border:0;flex:1 1 auto;padding:.375rem .75rem;min-width:0}
+.tz-phone-group input:focus{outline:0;box-shadow:none}
+.customer-phone-group{max-width:100%}
+.customer-phone-group .form-control{border:0;box-shadow:none;padding:.5rem .75rem;height:100%}
+.customer-phone-flag{width:28px;height:18px;border-radius:2px;object-fit:cover}

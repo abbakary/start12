@@ -1,0 +1,574 @@
+{% load static %}
+{% load form_extras %} 
+{% load date_filters %} 
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="{% static 'css/vendors/bootstrap.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendors/animate.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendors/feather-icon.css' %}">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/color-1.css' %}">
+    
+    <style>
+        .login-layout {
+            min-height: 100vh;
+            background: radial-gradient(1200px 600px at 80% -20%, rgba(255, 235, 59, .08), transparent 60%), 
+                        linear-gradient(135deg, #0b1730 0%, #0f1f46 50%, #11214d 100%);
+        }
+        
+        .login-card-wrap {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 992px) {
+            .login-card-wrap {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Left visual section */
+        .login-visual {
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+            padding: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-visual-inner {
+            position: relative;
+            width: 100%;
+            max-width: 720px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .brand-badge {
+            font-weight: 500;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #ffeb3b;
+            text-shadow: 0 2px 8px rgba(0,0,0,.4);
+        }
+        
+        .dynamic-words {
+            position: relative;
+            height: 3rem;
+            margin-top: .5rem;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .dynamic-words span {
+            position: absolute;
+            left: 0;
+            right: 0;
+            opacity: 0;
+            transform: translateY(10px);
+            color: #ffeb3b;
+            font-weight: 700;
+            font-size: 1.25rem;
+            text-shadow: 0 2px 8px rgba(0,0,0,.4);
+            animation: swapText 8s infinite;
+            text-align: center;
+        }
+        
+        .dynamic-words .word-2 {
+            animation-delay: 4s;
+        }
+        
+        @keyframes swapText {
+            0%{opacity:0;transform:translateY(10px);}
+            5%,45%{opacity:1;transform:translateY(0);}
+            55%,100%{opacity:0;transform:translateY(-10px);}
+        }
+        
+        /* Tyre animation */
+        .tyre-wrap {
+            position: relative;
+            height: 240px;
+            margin: 2rem auto 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .tyre-mover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            animation: drive 10s linear infinite;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .tyre-img {
+            height: 240px;
+            width: auto;
+            filter: drop-shadow(0 12px 24px rgba(0,0,0,.5));
+            animation: spin 1.2s linear infinite;
+        }
+        
+        @keyframes drive {
+            0%{ transform: translateX(-120%); }
+            100%{ transform: translateX(120%); }
+        }
+        
+        @keyframes spin {
+            from{ transform: rotate(0deg);}
+            to{ transform: rotate(360deg);}
+        }
+        
+        /* Floating particles */
+        .particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        
+        .particles span {
+            position: absolute;
+            display: block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255,255,255,.35);
+            box-shadow: 0 0 6px rgba(255,255,255,.6);
+            animation: floatUp linear infinite;
+        }
+        
+        @keyframes floatUp {
+            from { transform: translateY(20vh); opacity:.0; }
+            10%{opacity:.7;}
+            to { transform: translateY(-110vh); opacity: 0; }
+        }
+        
+        /* create many particles with different positions/durations */
+        .particles span:nth-child(1){ left:5%; animation-duration:9s; }
+        .particles span:nth-child(2){ left:12%; animation-duration:12s; }
+        .particles span:nth-child(3){ left:20%; animation-duration:7s; }
+        .particles span:nth-child(4){ left:28%; animation-duration:10s; }
+        .particles span:nth-child(5){ left:36%; animation-duration:8s; }
+        .particles span:nth-child(6){ left:44%; animation-duration:13s; }
+        .particles span:nth-child(7){ left:52%; animation-duration:9s; }
+        .particles span:nth-child(8){ left:60%; animation-duration:11s; }
+        .particles span:nth-child(9){ left:68%; animation-duration:7.5s; }
+        .particles span:nth-child(10){ left:76%; animation-duration:10.5s; }
+        .particles span:nth-child(11){ left:84%; animation-duration:12.5s; }
+        .particles span:nth-child(12){ left:92%; animation-duration:8.5s; }
+        
+        /* Wave effect at bottom of left panel */
+        .wave {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            height: 120px;
+        }
+        
+        .wave svg {
+            width: 200%;
+            height: 100%;
+            animation: waveMove 12s linear infinite;
+        }
+        
+        @keyframes waveMove {
+            from{ transform: translateX(0); }
+            to{ transform: translateX(-50%); }
+        }
+        
+        /* Right form section - Material Design */
+        .login-form-side {
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .form-card {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: none;
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        }
+        
+        .form-card:hover {
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        /* Card body with consistent padding */
+        .form-card .card-body {
+            padding: 2rem 2.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .form-title {
+            font-weight: 600;
+            color: #1a237e;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            position: relative;
+            padding-bottom: 0.75rem;
+            width: 100%;
+        }
+        
+        .form-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 2px;
+            background: linear-gradient(90deg, #3f51b5, #2196f3);
+            border-radius: 3px;
+        }
+        
+        .form-group {
+            margin-bottom: 1.25rem;
+            position: relative;
+            width: 100%;
+        }
+        
+        /* Consistent styling for all form elements */
+        .form-control {
+            height: 46px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background-color: #f5f5f5;
+            box-shadow: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .form-control:focus {
+            border-color: #3f51b5;
+            box-shadow: 0 0 0 2px rgba(63, 81, 181, 0.2);
+            background-color: #fff;
+        }
+        
+        .form-label {
+            position: absolute;
+            left: 1rem;
+            top: 0.75rem;
+            color: #757575;
+            transition: all 0.3s;
+            pointer-events: none;
+            background: #fff;
+            padding: 0 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .form-control:focus + .form-label,
+        .form-control:not(:placeholder-shown) + .form-label {
+            top: -0.75rem;
+            left: 0.75rem;
+            font-size: 0.75rem;
+            color: #3f51b5;
+            background: #fff;
+            padding: 0 0.5rem;
+        }
+        
+        /* Same styling as inputs */
+        .btn-login {
+            background: linear-gradient(135deg, #3f51b5 0%, #2196f3 100%);
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            height: 46px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+            transition: all 0.3s;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        .btn-login:hover {
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+            transform: translateY(-1px);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn-login:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.6s;
+        }
+        
+        .btn-login:hover:before {
+            left: 100%;
+        }
+        
+        .forgot-password {
+            text-align: center;
+            margin-top: 0.75rem;
+            width: 100%;
+        }
+        
+        .forgot-password a {
+            color: #757575;
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: color 0.3s;
+        }
+        
+        .forgot-password a:hover {
+            color: #3f51b5;
+        }
+        
+        .form-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: #757575;
+            width: 100%;
+        }
+        
+        .form-footer a {
+            color: #3f51b5;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        /* Logo container - Perfect centering */
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eaeaea;
+        }
+        
+        .logo-container img {
+            max-height: 50px;
+            width: auto;
+        }
+        
+        /* Ripple effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.7);
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+        
+        @keyframes ripple {
+            to {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+        
+        /* Alert styling */
+        .alert-danger {
+            background: #ffebee;
+            color: #c62828;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+            border-left: 4px solid #f44336;
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        
+        /* Login form centering */
+        .login-form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        /* Ensure all form elements have the exact same width */
+        .login-form > * {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body class="login-layout">
+    <div class="login-card-wrap">
+        <!-- Left: Visuals -->
+        <section class="login-visual">
+            <div class="particles">
+                {% for _ in 'abcdefghijklmnop' %}
+                <span></span>
+                {% endfor %}
+            </div>
+            
+            <div class="login-visual-inner">
+                <div class="logo-container mb-4">
+                    <img src="{% static 'image/stm_logo.png' %}" alt="STM Logo" class="img-fluid" style="max-height: 80px; width: auto;">
+                </div>
+                
+              
+                
+                <div class="dynamic-words">
+                    <span class="word-1">Welcome to home of automobile</span>
+                    <span class="word-2">Superdoll</span>
+                </div>
+                
+                <div class="tyre-wrap">
+                    <div class="tyre-mover">
+                        <img class="tyre-img" src="https://cdn.builder.io/api/v1/image/assets%2F01822e59c2f24bdb866eced0eaa42d47%2Fa3173fa341404f049229e35c2422b511?format=webp&width=800" alt="Tyre moving">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="wave">
+                <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+                    <path d="M0,0 C300,100 900,0 1200,100 L1200,120 L0,120 Z" fill="rgba(255,255,255,.12)"></path>
+                </svg>
+            </div>
+        </section>
+
+        <!-- Right: Form -->
+        <section class="login-form-side">
+            <div class="card form-card">
+                <div class="card-body">
+                    <h3 class="form-title">Welcome Back</h3>
+                    
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Invalid username or password. Please try again.
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post" action="{% url 'login' %}" class="login-form">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <input type="text" name="username" class="form-control" placeholder=" " required>
+                            <label class="form-label">Username</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <input type="password" name="password" class="form-control" placeholder=" " required>
+                            <label class="form-label">Password</label>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn-login" id="loginButton">
+                                <span>SIGN IN</span>
+                            </button>
+                        </div>
+                        
+                        <div class="forgot-password">
+                            <a href="#">Forgot Password?</a>
+                        </div>
+                    </form>
+                    
+                    <!-- Perfectly centered logo at bottom -->
+                    <div class="logo-container">
+                        <img src="{% static 'image/wecare.png' %}" alt="WeCare Logo" class="img-fluid">
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{% static 'js/bootstrap/bootstrap.bundle.min.js' %}"></script>
+    
+    <script>
+        // Add ripple effect to login button
+        document.getElementById('loginButton').addEventListener('click', function(e) {
+            // Remove any existing ripples
+            const ripples = document.querySelectorAll('.ripple');
+            ripples.forEach(ripple => ripple.remove());
+            
+            // Create new ripple
+            const rect = e.target.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            const ripple = document.createElement('span');
+            ripple.classList.add('ripple');
+            ripple.style.width = ripple.style.height = `${size}px`;
+            ripple.style.left = `${x}px`;
+            ripple.style.top = `${y}px`;
+            
+            this.appendChild(ripple);
+            
+            // Remove ripple after animation
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+        
+        // Add focus/blur effects to form inputs
+        const inputs = document.querySelectorAll('.form-control');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentNode.classList.add('focused');
+            });
+            
+            input.addEventListener('blur', function() {
+                if (this.value === '') {
+                    this.parentNode.classList.remove('focused');
+                }
+            });
+            
+            // Check if input has value on page load
+            if (input.value !== '') {
+                input.parentNode.classList.add('focused');
+            }
+        });
+    </script>
+</body>
+</html>

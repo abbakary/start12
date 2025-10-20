@@ -1,0 +1,39 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% block title %}Revenue Analytics{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6"><h4>Revenue Analytics</h4></div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><svg class="stroke-icon"><use href="../assets/svg/icon-sprite.svg#stroke-home"></use></svg></a></li>
+          <li class="breadcrumb-item active">Analytics</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-xxl-4 col-sm-6"><div class="card h-100"><div class="card-body"><h6 class="mb-1">Total Orders</h6><h3 class="f-w-600 mb-0">{{ totals.total_orders|default:0 }}</h3></div></div></div>
+    <div class="col-xxl-4 col-sm-6"><div class="card h-100"><div class="card-body"><h6 class="mb-1">Completed Orders</h6><h3 class="f-w-600 mb-0">{{ totals.completed_orders|default:0 }}</h3></div></div></div>
+    <div class="col-xxl-4 col-sm-6"><div class="card h-100"><div class="card-body"><h6 class="mb-1">Revenue Potential</h6><h3 class="f-w-600 mb-0">{{ totals.revenue_potential|default:0 }}</h3></div></div></div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-12">
+      <div class="card h-100"><div class="card-header"><h5>Orders by Type</h5></div>
+        <div class="card-body"><canvas id="typePie" width="900" height="320"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function(){
+  var charts = JSON.parse({{ charts_json|safe|default:'{}'|escapejs }});
+  function pie(cv, lbls, vals, colors){ var ctx=cv.getContext('2d'); var t=vals.reduce(function(a,b){return a+b;},0)||1; var cx=cv.width/2, cy=cv.height/2, r=Math.min(cx,cy)-10, a=-Math.PI/2; for(var i=0;i<vals.length;i++){ var s=(vals[i]/t)*Math.PI*2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a,a+s); ctx.closePath(); ctx.fillStyle=colors[i%colors.length]; ctx.fill(); a+=s; } }
+  document.addEventListener('DOMContentLoaded', function(){ if(charts.type){ pie(document.getElementById('typePie'), charts.type.labels, charts.type.values, ['#4e79a7','#59a14f','#f28e2b']); } });
+})();
+</script>
+{% endblock %}

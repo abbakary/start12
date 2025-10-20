@@ -1,0 +1,149 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% block title %}Customer Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-6">
+        <h4>Customer Analytics</h4>
+      </div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tracker:analytics' %}">Analytics</a></li>
+          <li class="breadcrumb-item active">Customers</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <!-- Period Tabs + Export -->
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if period == 'daily' %}active{% endif %}" href="{% url 'tracker:analytics_customer' %}?period=daily">Daily</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'weekly' %}active{% endif %}" href="{% url 'tracker:analytics_customer' %}?period=weekly">Weekly</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'monthly' or not period %}active{% endif %}" href="{% url 'tracker:analytics_customer' %}?period=monthly">Monthly</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'yearly' %}active{% endif %}" href="{% url 'tracker:analytics_customer' %}?period=yearly">Yearly</a></li>
+    <li class="ms-auto d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{% url 'tracker:reports_export' %}?from={{ export_from }}&to={{ export_to }}">
+        <i class="fa fa-download me-1"></i> Export Orders CSV
+      </a>
+      <a class="btn btn-outline-secondary" href="{% url 'tracker:customers_export' %}">
+        <i class="fa fa-user me-1"></i> Export All Customers
+      </a>
+    </li>
+  </ul>
+
+  <!-- Custom Range Filter -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <form class="row g-2 align-items-end" method="get">
+        <div class="col-sm-3">
+          <label class="form-label">From</label>
+          <input type="date" class="form-control" name="from" value="{{ export_from }}">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label">To</label>
+          <input type="date" class="form-control" name="to" value="{{ export_to }}">
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label">Period</label>
+          <select class="form-select" name="period">
+            <option value="">Custom</option>
+            <option value="daily" {% if period == 'daily' %}selected{% endif %}>Daily</option>
+            <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>Weekly</option>
+            <option value="monthly" {% if period == 'monthly' %}selected{% endif %}>Monthly</option>
+            <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>Yearly</option>
+          </select>
+        </div>
+        <div class="col-sm-3 d-flex gap-2">
+          <button class="btn btn-primary" type="submit"><i class="fa fa-filter me-1"></i> Apply</button>
+          <a class="btn btn-light" href="{% url 'tracker:analytics_customer' %}">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3">
+    <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">New Customers</div><div class="h3 mb-0">{{ totals.new_customers }}</div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">Total Customers</div><div class="h3 mb-0">{{ totals.total_customers }}</div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">With Email</div><div class="h3 mb-0 text-primary">{{ totals.with_email }}</div></div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card shadow-sm h-100"><div class="card-body"><div class="text-muted small">With Phone</div><div class="h3 mb-0 text-success">{{ totals.with_phone }}</div></div></div></div>
+  </div>
+
+  <!-- Charts + Top list -->
+  <div class="row mt-3 g-3">
+    <div class="col-xl-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header"><h5 class="mb-0">New Customers Trend</h5></div>
+        <div class="card-body"><div id="cTrend" style="height:360px"></div></div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header"><h6 class="mb-0">Customer Types</h6></div>
+        <div class="card-body"><div id="cTypes" style="height:300px"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Customers -->
+  <div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0">Top Customers (by orders)</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Name</th><th>Orders</th><th>Last Order</th></tr>
+          </thead>
+          <tbody>
+            {% for c in top_customers %}
+              <tr>
+                <td class="text-nowrap">{{ c.full_name }}</td>
+                <td>{{ c.order_count }}</td>
+                <td class="text-nowrap">{% firstof c.latest_order_date|date:'Y-m-d H:i' '-' %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="text-center p-4">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const charts = {{ charts_json|default:'{}'|safe }};
+  function pie(labels, values){return {tooltip:{trigger:'item'},legend:{bottom:0},series:[{type:'pie',radius:['40%','70%'],data:labels.map((l,i)=>({name:l,value:values[i]||0})),label:{show:false},emphasis:{label:{show:true,fontSize:14}}}]}}
+  function line(labels, values){return {tooltip:{trigger:'axis'},xAxis:{type:'category',data:labels||[]},yAxis:{type:'value'},grid:{left:40,right:10,top:20,bottom:40},series:[{type:'line',smooth:true,data:values||[],areaStyle:{}}]}}
+  document.addEventListener('DOMContentLoaded',()=>{
+    if(window.echarts && charts){
+      // Trend
+      const trendEl = document.getElementById('cTrend');
+      if(trendEl){
+        const t = charts.trend || {};
+        const hasData = (t.values||[]).some(v => (v||0) > 0);
+        if(hasData){ echarts.init(trendEl).setOption(line(t.labels||[], t.values||[])); }
+        else { trendEl.innerHTML = '<div class="text-center text-muted">No data</div>'; }
+      }
+      // Types
+      const typesEl = document.getElementById('cTypes');
+      if(typesEl){
+        const p = charts.types || {};
+        const hasData = (p.values||[]).some(v => (v||0) > 0);
+        if(hasData){ echarts.init(typesEl).setOption(pie(p.labels||[], p.values||[])); }
+        else { typesEl.innerHTML = '<div class="text-center text-muted">No data</div>'; }
+      }
+    }
+  });
+</script>
+{% endblock %}

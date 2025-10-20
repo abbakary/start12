@@ -1,0 +1,2166 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% block title %}Service Analytics{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Base Styles */
+  :root {
+    --primary: #4361ee;
+    --primary-dark: #3f37c9;
+    --secondary: #4895ef;
+    --success: #4cc9f0;
+    --info: #4cc9f0;
+    --warning: #f8961e;
+    --danger: #f72585;
+    --light: #f8f9fa;
+    --dark: #212529;
+    --gray-100: #f8f9fa;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #6c757d;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+  }
+
+  /* Card Styles */
+  .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .card:hover {
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1.25rem 1.5rem;
+  }
+
+  .card-title {
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 0;
+  }
+
+  /* Stat Cards */
+  .stat-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+  }
+
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  }
+
+  .stat-card .card-body {
+    padding: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+    margin-bottom: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: rgba(67, 97, 238, 0.1);
+    color: var(--primary);
+  }
+
+  .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+    color: var(--gray-900);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .stat-label {
+    color: var(--gray-600);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+  }
+
+  .stat-change {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+
+  .stat-change.positive {
+    color: #10b981;
+  }
+
+  .stat-change.negative {
+    color: #ef4444;
+  }
+
+  /* Chart Containers */
+  .chart-container {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+  }
+
+  /* Filter Section */
+  .filter-section {
+    background: #fff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  /* Tabs */
+  .nav-tabs {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 0 1.5rem;
+    margin: 0 -1.5rem 1.5rem;
+  }
+
+  .nav-tabs .nav-link {
+    border: none;
+    color: var(--gray-600);
+    font-weight: 500;
+    padding: 1rem 1.25rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+  }
+
+  .nav-tabs .nav-link:hover {
+    border-color: transparent;
+    color: var(--primary);
+  }
+
+  .nav-tabs .nav-link.active {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: none;
+  }
+
+  /* Buttons */
+  .btn {
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+  }
+
+  .btn-outline-secondary {
+    border-color: var(--gray-300);
+    color: var(--gray-600);
+  }
+
+  .btn-outline-secondary:hover, 
+  .btn-outline-secondary.active {
+    background-color: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  /* Form Controls */
+  .form-control, .form-select {
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--gray-300);
+    transition: all 0.2s ease;
+  }
+
+  .form-control:focus, .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25rem rgba(67, 97, 238, 0.15);
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .stat-card {
+      margin-bottom: 1rem;
+    }
+    
+    .card-header {
+      padding: 1rem;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+    }
+    
+    .stat-icon {
+      font-size: 2rem;
+      width: 50px;
+      height: 50px;
+    }
+  }
+  .card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+  }
+  .card:hover {
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
+  }
+  .card-header {
+    background: transparent;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 1.25rem 1.5rem;
+  }
+  .card-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-12 col-md-6">
+        <h4>Service Analytics</h4>
+        <p class="text-muted mb-0">Comprehensive insights into your service operations</p>
+      </div>
+      <div class="col-12 col-md-6">
+        <ol class="breadcrumb justify-content-md-end mb-0">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><i class="fas fa-home"></i></a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tracker:analytics' %}">Analytics</a></li>
+          <li class="breadcrumb-item active">Service</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <!-- Filters Card -->
+  <div class="card mb-4">
+    <div class="card-body p-3">
+      <form class="row g-3 align-items-end" method="get" id="filterForm">
+        <div class="col-md-3">
+          <label class="form-label">Date Range</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="far fa-calendar-alt"></i></span>
+            <input type="date" class="form-control" name="from" value="{{ f_from }}" id="dateFrom">
+            <span class="input-group-text">to</span>
+            <input type="date" class="form-control" name="to" value="{{ f_to }}" id="dateTo">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Period</label>
+          <select class="form-select" name="period" id="periodSelect">
+            <option value="">Custom Range</option>
+            <option value="daily" {% if period == 'daily' %}selected{% endif %}>Today</option>
+            <option value="weekly" {% if period == 'weekly' %}selected{% endif %}>This Week</option>
+            <option value="monthly" {% if period == 'monthly' or not period %}selected{% endif %}>This Month</option>
+            <option value="yearly" {% if period == 'yearly' %}selected{% endif %}>This Year</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <div class="btn-group w-100">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-filter me-2"></i>Apply Filters
+            </button>
+            <a href="{% url 'tracker:analytics_service' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-sync-alt"></i>
+            </a>
+            <a href="{% url 'tracker:reports_export' %}?from={{ f_from|default:'' }}&to={{ f_to|default:'' }}" class="btn btn-outline-primary">
+              <i class="fas fa-download me-2"></i>Export
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-4 mb-4">
+    <!-- Total Orders -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card stat-card border-start border-primary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-2">Total Orders</h6>
+              <h3 class="mb-1">{{ kpis.total_orders|default:0 }}</h3>
+              {% with delta=kpis.order_change|default:0 %}
+              <span class="small {% if delta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="fas {% if delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                {{ delta }}% from last period
+              </span>
+              {% endwith %}
+            </div>
+            <div class="stat-icon bg-soft-primary rounded p-3">
+              <i class="fas fa-shopping-cart text-primary"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tire Sales -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card stat-card border-start border-success">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-2">Tire Sales</h6>
+              <h3 class="mb-1">{{ kpis.total_tire_sales|default:0 }}</h3>
+              {% with delta=kpis.tire_sales_change|default:0 %}
+              <span class="small {% if delta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="fas {% if delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                {{ delta }}% from last period
+              </span>
+              {% endwith %}
+            </div>
+            <div class="stat-icon bg-soft-success rounded p-3">
+              <i class="fas fa-tire text-success"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Car Service -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card stat-card border-start border-info">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-2">Car Service</h6>
+              <h3 class="mb-1">{{ kpis.total_car_service|default:0 }}</h3>
+              {% with delta=kpis.car_service_change|default:0 %}
+              <span class="small {% if delta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="fas {% if delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                {{ delta }}% from last period
+              </span>
+              {% endwith %}
+            </div>
+            <div class="stat-icon bg-soft-info rounded p-3">
+              <i class="fas fa-car text-info"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Inquiries -->
+    <div class="col-md-6 col-lg-3">
+      <div class="card stat-card border-start border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-2">Inquiries</h6>
+              <h3 class="mb-1">{{ kpis.total_inquiries|default:0 }}</h3>
+              {% with delta=kpis.inquiry_change|default:0 %}
+              <span class="small {% if delta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <i class="fas {% if delta >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                {{ delta }}% from last period
+              </span>
+              {% endwith %}
+            </div>
+            <div class="stat-icon bg-soft-warning rounded p-3">
+              <i class="fas fa-question-circle text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Charts Row -->
+  <div class="row g-4">
+    <!-- Service Trend Chart -->
+    <div class="col-xl-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Service Trend</h5>
+          <div class="btn-group btn-group-sm time-period-buttons">
+            <button type="button" class="btn btn-outline-primary time-period-btn {% if period == 'daily' %}active{% endif %}" data-period="daily">Daily</button>
+            <button type="button" class="btn btn-outline-primary time-period-btn {% if period == 'weekly' %}active{% endif %}" data-period="weekly">Weekly</button>
+            <button type="button" class="btn btn-outline-primary time-period-btn {% if period == 'monthly' %}active{% endif %}" data-period="monthly">Monthly</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+            <canvas id="serviceTrendChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Distribution -->
+    <div class="col-xl-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Service Distribution</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+            <canvas id="serviceDistributionChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Second Row -->
+  <div class="row g-4 mt-4">
+    <!-- Status Overview -->
+    <div class="col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Order Status Overview</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+            <canvas id="statusOverviewChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Performance -->
+    <div class="col-xl-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Service Performance</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+            <canvas id="servicePerformanceChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Third Row - Detailed Breakdown -->
+  <div class="row g-4 mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="card-title mb-0">Detailed Service Breakdown</h5>
+        </div>
+        <div class="card-body">
+          <ul class="nav nav-tabs" id="serviceTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="tire-tab" data-bs-toggle="tab" data-bs-target="#tireTab" type="button" role="tab">
+                <i class="fas fa-tire me-2"></i>Tire Sales
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="service-tab" data-bs-toggle="tab" data-bs-target="#serviceTab" type="button" role="tab">
+                <i class="fas fa-car me-2"></i>Car Service
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="inquiry-tab" data-bs-toggle="tab" data-bs-target="#inquiryTab" type="button" role="tab">
+                <i class="fas fa-question-circle me-2"></i>Inquiries
+              </button>
+            </li>
+          </ul>
+          <div class="tab-content p-3 border border-top-0 rounded-bottom" id="serviceTabsContent">
+            <div class="tab-pane fade show active" id="tireTab" role="tabpanel" aria-labelledby="tire-tab">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>Top Tire Brands</h6>
+                  <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="tireBrandsChart"></canvas>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <h6>Tire Types</h6>
+                  <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="tireTypesChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tab-pane fade" id="serviceTab" role="tabpanel" aria-labelledby="service-tab">
+              <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                <canvas id="serviceTypesChart"></canvas>
+              </div>
+            </div>
+            <div class="tab-pane fade" id="inquiryTab" role="tabpanel" aria-labelledby="inquiry-tab">
+              <div class="chart-container" style="position: relative; height: 300px; width: 100%;">
+                <canvas id="inquiryTypesChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Custom Chart Initialization -->
+<script>
+// Global chart colors
+const chartColors = {
+    primary: 'rgba(67, 97, 238, 0.8)',
+    secondary: 'rgba(63, 55, 201, 0.8)',
+    success: 'rgba(76, 201, 240, 0.8)',
+    info: 'rgba(72, 149, 239, 0.8)',
+    warning: 'rgba(248, 150, 30, 0.8)',
+    danger: 'rgba(247, 37, 133, 0.8)',
+    light: 'rgba(248, 249, 250, 0.8)',
+    dark: 'rgba(33, 37, 41, 0.8)'
+};
+
+// Chart defaults
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+Chart.defaults.plugins.legend.position = 'bottom';
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+Chart.defaults.plugins.tooltip.titleFont = { size: 14, weight: 'bold' };
+Chart.defaults.plugins.tooltip.bodyFont = { size: 13 };
+
+// Common chart options
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+        // Use nearest + intersect to make hover responsive for all chart orientations
+        intersect: true,
+        mode: 'nearest'
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: {
+                drawBorder: false
+            },
+            ticks: {
+                precision: 0
+            }
+        },
+        x: {
+            grid: {
+                display: false
+            }
+        }
+    },
+    plugins: {
+        legend: {
+            labels: {
+                padding: 20,
+                usePointStyle: true,
+                pointStyle: 'circle'
+            }
+        },
+        tooltip: {
+            callbacks: {
+                label: function(context) {
+                    let label = context.dataset.label || '';
+                    if (label) label += ': ';
+                    // For vertical charts value is in parsed.y, for horizontal (indexAxis: 'y') value is in parsed.x
+                    let value = null;
+                    if (context.parsed !== undefined) {
+                        if (typeof context.parsed === 'number') value = context.parsed;
+                        else value = context.parsed.y ?? context.parsed.x ?? null;
+                    }
+                    if (value !== null) label += value;
+                    return label;
+                }
+            }
+        }
+    }
+};
+
+// Function to initialize all visible charts
+function initVisibleCharts() {
+    // Always initialize these charts as they're always visible
+    initServiceTrendChart();
+    initServiceDistributionChart();
+    initStatusOverviewChart();
+    initServicePerformanceChart();
+    
+    // Initialize charts in the active tab
+    const activeTab = document.querySelector('#serviceTabsContent .tab-pane.active');
+    if (activeTab) {
+        if (activeTab.id === 'tireTab') {
+            initTireBrandsChart();
+            initTireTypesChart();
+        } else if (activeTab.id === 'serviceTab') {
+            initServiceTypesChart();
+        } else if (activeTab.id === 'inquiryTab') {
+            initInquiryTypesChart();
+        }
+    }
+}
+
+// Initialize all charts when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize visible charts
+    initVisibleCharts();
+    
+    // Handle tab changes
+    const tabEls = document.querySelectorAll('#serviceTabs button[data-bs-toggle="tab"]');
+    tabEls.forEach(tabEl => {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+            const targetTab = event.target.getAttribute('data-bs-target');
+            if (targetTab === '#tireTab') {
+                initTireBrandsChart();
+                initTireTypesChart();
+            } else if (targetTab === '#serviceTab') {
+                initServiceTypesChart();
+            } else if (targetTab === '#inquiryTab') {
+                initInquiryTypesChart();
+            }
+        });
+    });
+    
+    // Handle period toggle buttons (daily/weekly/monthly)
+    document.querySelectorAll('[data-period]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Toggle active state on buttons
+            document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            // Set select value directly from data-period
+            const p = this.dataset.period; // 'daily' | 'weekly' | 'monthly'
+            const sel = document.getElementById('periodSelect');
+            if (sel) sel.value = p;
+            // Clear explicit date range to rely on selected period
+            const fromEl = document.getElementById('dateFrom');
+            const toEl = document.getElementById('dateTo');
+            if (fromEl) fromEl.value = '';
+            if (toEl) toEl.value = '';
+            // Submit the form to refresh data and charts
+            const form = document.getElementById('filterForm');
+            if (form) form.submit();
+        });
+    });
+
+    // Auto-submit when period dropdown changes
+    const periodSel = document.getElementById('periodSelect');
+    if (periodSel) {
+        periodSel.addEventListener('change', function() {
+            // Clear custom dates if a preset is chosen
+            const v = this.value; // '', 'daily', 'weekly', 'monthly', 'yearly'
+            if (v) {
+                const fromEl = document.getElementById('dateFrom');
+                const toEl = document.getElementById('dateTo');
+                if (fromEl) fromEl.value = '';
+                if (toEl) toEl.value = '';
+            }
+            const form = document.getElementById('filterForm');
+            if (form) form.submit();
+        });
+    }
+});
+
+// Service Trend Chart
+function initServiceTrendChart() {
+    const ctx = document.getElementById('serviceTrendChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.trend_multi) return;
+        
+        const labels = data.trend_multi.labels || [];
+        // Distinct qualitative palette for clear separation between series
+        const trendPalette = [
+            '#1f77b4', // blue
+            '#ff7f0e', // orange
+            '#2ca02c', // green
+            '#d62728', // red
+            '#9467bd', // purple
+            '#8c564b', // brown
+            '#e377c2', // pink
+            '#17becf'  // teal
+        ];
+        const datasets = (data.trend_multi.series || []).map((series, index) => {
+            const color = trendPalette[index % trendPalette.length];
+            return {
+                label: series.name,
+                data: series.values || [],
+                borderColor: color,
+                backgroundColor: color + '33', // ~20% opacity fill
+                borderWidth: 2,
+                tension: 0.3,
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 5
+            };
+        });
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Service Trend Over Time',
+                        font: { size: 16, weight: '600' },
+                        padding: { bottom: 20 }
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    y: {
+                        ...chartOptions.scales.y,
+                        title: { display: true, text: 'Number of Orders' }
+                    },
+                    x: {
+                        ...chartOptions.scales.x,
+                        title: { display: true, text: 'Date' }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing trend chart:', error);
+    }
+}
+
+// Service Distribution Chart
+function initServiceDistributionChart() {
+    const ctx = document.getElementById('serviceDistributionChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.types || !data.types.labels || data.types.labels.length === 0) {
+            document.getElementById('serviceDistributionChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No service distribution data available</div>';
+            return;
+        }
+        
+        const chartData = {
+            labels: data.types.labels || [],
+            datasets: [{
+                data: data.types.values || [],
+                backgroundColor: [
+                    chartColors.primary,
+                    chartColors.success,
+                    chartColors.info
+                ].slice(0, data.types.labels?.length || 0),
+                borderWidth: 1,
+                borderColor: '#fff',
+                spacing: 2
+            }]
+        };
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: chartData,
+            options: {
+                ...chartOptions,
+                cutout: '70%',
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Service Distribution',
+                        font: { size: 16, weight: '600' },
+                        padding: { bottom: 20 }
+                    },
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 15,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0) || 0;
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing distribution chart:', error);
+    }
+}
+
+// Status Overview Chart
+function initStatusOverviewChart() {
+    const ctx = document.getElementById('statusOverviewChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.status_by_app) {
+            document.getElementById('statusOverviewChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No status data available</div>';
+            return;
+        }
+        
+        const statusLabels = data.status_by_app.apps || [];
+        const seriesData = data.status_by_app.series || [];
+        
+        // Transform data for stacked bar chart
+        const datasets = seriesData.map((series, index) => ({
+            label: series.name,
+            data: series.data || [],
+            backgroundColor: Object.values(chartColors)[index % 8],
+            borderWidth: 1,
+            borderRadius: 4
+        }));
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: statusLabels.map(label => 
+                    label.split('_').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')
+                ),
+                datasets: datasets
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    ...chartOptions.scales,
+                    x: {
+                        ...chartOptions.scales.x,
+                        stacked: true,
+                        title: { display: true, text: 'Status' }
+                    },
+                    y: {
+                        ...chartOptions.scales.y,
+                        stacked: true,
+                        title: { display: true, text: 'Number of Orders' }
+                    }
+                },
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Order Status by Service Type',
+                        font: { size: 16, weight: '600' },
+                        padding: { bottom: 20 }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing status overview chart:', error);
+    }
+}
+
+// Tire Brands Chart
+function initTireBrandsChart() {
+    const ctx = document.getElementById('tireBrandsChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.top_brands || !data.top_brands.labels || data.top_brands.labels.length === 0) {
+            document.getElementById('tireBrandsChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No tire brand data available</div>';
+            return;
+        }
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.top_brands.labels,
+                datasets: [{
+                    label: 'Number of Orders',
+                    data: (data.top_brands.values || []).map(v => Number(v) || 0),
+                    backgroundColor: (function(){
+                        // create an array of colors mixing chart palette for visual variety
+                        const palette = Object.values(chartColors);
+                        const colors = [];
+                        for (let i=0;i<data.top_brands.labels.length;i++) {
+                            const c = palette[i % palette.length];
+                            // ensure solid-ish fill by replacing alpha when rgba
+                            if (c.startsWith('rgba')) {
+                                colors.push(c.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/,'rgba($1,$2,$3,0.9)'));
+                            } else {
+                                colors.push(c);
+                            }
+                        }
+                        return colors;
+                    })(),
+                    borderColor: (function(){
+                        const palette = Object.values(chartColors);
+                        return data.top_brands.labels.map((_,i)=> palette[i % palette.length]);
+                    })(),
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                ...chartOptions,
+                indexAxis: 'y',
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Top Tire Brands',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            // For horizontal bars, read value directly from raw to avoid parsed axis ambiguity
+                            label: function(context) {
+                                const label = context.dataset.label || 'Count';
+                                const value = typeof context.raw === 'number' ? context.raw : (Number(context.raw) || 0);
+                                return `${label}: ${value}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    x: {
+                        ...chartOptions.scales.x,
+                        title: { display: true, text: 'Number of Orders' }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing tire brands chart:', error);
+    }
+}
+
+// Tire Types Chart
+function initTireTypesChart() {
+    const ctx = document.getElementById('tireTypesChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.tire_types || !data.tire_types.labels || data.tire_types.labels.length === 0) {
+            document.getElementById('tireTypesChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No tire type data available</div>';
+            return;
+        }
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.tire_types.labels,
+                datasets: [{
+                    data: data.tire_types.values,
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.success,
+                        chartColors.info,
+                        chartColors.warning,
+                        chartColors.danger
+                    ].slice(0, data.tire_types.labels.length),
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                ...chartOptions,
+                cutout: '70%',
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Tire Types',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0) || 0;
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing tire types chart:', error);
+    }
+}
+
+// Inquiry Types Chart
+function initInquiryTypesChart() {
+    const ctx = document.getElementById('inquiryTypesChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.inquiry_types || !data.inquiry_types.labels || data.inquiry_types.labels.length === 0) {
+            document.getElementById('inquiryTypesChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No inquiry type data available</div>';
+            return;
+        }
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.inquiry_types.labels,
+                datasets: [{
+                    data: data.inquiry_types.values,
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.success,
+                        chartColors.info,
+                        chartColors.warning,
+                        chartColors.danger
+                    ].slice(0, data.inquiry_types.labels.length),
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Inquiry Types',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0) || 0;
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing inquiry types chart:', error);
+    }
+}
+
+// Service Types Chart
+function initServiceTypesChart() {
+    const ctx = document.getElementById('serviceTypesChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.service_types || !data.service_types.labels || data.service_types.labels.length === 0) {
+            document.getElementById('serviceTypesChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No service type data available</div>';
+            return;
+        }
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: data.service_types.labels,
+                datasets: [{
+                    data: data.service_types.values,
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.success,
+                        chartColors.info,
+                        chartColors.warning,
+                        chartColors.danger
+                    ].slice(0, data.service_types.labels.length),
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                ...chartOptions,
+                cutout: '70%',
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Service Types',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0) || 0;
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing service types chart:', error);
+    }
+}
+
+// Inquiry Types Chart
+function initInquiryTypesChart() {
+    const ctx = document.getElementById('inquiryTypesChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    try {
+        const data = JSON.parse('{{ charts_json|escapejs }}');
+        if (!data.inquiry_types || !data.inquiry_types.labels || data.inquiry_types.labels.length === 0) {
+            document.getElementById('inquiryTypesChart').parentElement.innerHTML = 
+                '<div class="text-muted text-center py-4">No inquiry type data available</div>';
+            return;
+        }
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.inquiry_types.labels,
+                datasets: [{
+                    data: data.inquiry_types.values,
+                    backgroundColor: [
+                        chartColors.primary,
+                        chartColors.success,
+                        chartColors.info,
+                        chartColors.warning,
+                        chartColors.danger
+                    ].slice(0, data.inquiry_types.labels.length),
+                    borderWidth: 1,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                        display: true,
+                        text: 'Inquiry Types',
+                        font: { size: 14, weight: '600' },
+                        padding: { bottom: 10 }
+                    },
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 10,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing inquiry types chart:', error);
+    }
+}
+
+// Service Performance Chart (Placeholder - can be implemented with real data if available)
+function initServicePerformanceChart() {
+    const ctx = document.getElementById('servicePerformanceChart')?.getContext('2d');
+    if (!ctx) return;
+    
+    // This is a placeholder - implement with real data if available
+    document.getElementById('servicePerformanceChart').parentElement.innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <p class="text-muted">Service performance metrics coming soon</p>
+        </div>
+    `;
+}
+</script>
+<script>
+  const charts = {{ charts_json|safe }};
+  // Initialize chart themes and options
+  const chartThemes = {
+    colors: ['#4361ee', '#3f37c9', '#4895ef', '#4cc9f0', '#4895ef', '#4361ee', '#3f37c9'],
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    legend: {
+      bottom: 0,
+      data: []
+    }
+  };
+
+  // Build chartData from backend charts JSON
+  const chartData = {
+    serviceTrend: {
+      days: (charts.trend_multi && charts.trend_multi.labels) || [],
+      series: (charts.trend_multi && charts.trend_multi.series || []).map(s => ({ name: s.name, data: s.values }))
+    },
+    serviceDistribution: {
+      data: (charts.types && charts.types.labels || []).map((name, i) => ({ name, value: (charts.types.values || [])[i] || 0 }))
+    },
+    statusOverview: {
+      categories: (charts.status_by_app && charts.status_by_app.apps) || [],
+      data: (charts.status_by_app && charts.status_by_app.series || []).reduce((acc, s) => acc.map((v, i) => v + ((s.data || [])[i] || 0)), new Array(((charts.status_by_app && charts.status_by_app.apps) || []).length).fill(0))
+    },
+    tireBrands: {
+      data: (charts.top_brands && charts.top_brands.labels || []).map((name, i) => ({ name, value: (charts.top_brands.values || [])[i] || 0 }))
+    },
+    tireTypes: {
+      data: (charts.tire_types && charts.tire_types.labels || []).map((name, i) => ({ name, value: (charts.tire_types.values || [])[i] || 0 }))
+    },
+    serviceTypes: {
+      data: (charts.service_types && charts.service_types.labels || []).map((name, i) => ({ name, value: (charts.service_types.values || [])[i] || 0 }))
+    },
+    inquiryTypes: {
+      data: (charts.inquiry_types && charts.inquiry_types.labels || []).map((name, i) => ({ name, value: (charts.inquiry_types.values || [])[i] || 0 }))
+    },
+    servicePerformance: { indicators: charts.service_performance || [] }
+  };
+
+  // Initialize charts when DOM is loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all charts
+    initServiceTrendChart();
+    initServiceDistributionChart();
+    initStatusOverviewChart();
+    initServicePerformanceChart();
+    initTireBrandsChart();
+    initTireTypesChart();
+    initServiceTypesChart();
+    initInquiryTypesChart();
+    
+    // Handle period toggle buttons
+    document.querySelectorAll('[data-period]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const p = this.dataset.period;
+        const sel = document.getElementById('periodSelect');
+        if (sel) { sel.value = p === 'day' ? 'daily' : (p === 'week' ? 'weekly' : 'monthly'); }
+        const form = document.getElementById('filterForm');
+        if (form) form.submit();
+      });
+    });
+  });
+
+  // Service Trend Chart
+  let serviceTrendChart = null;
+  
+  function initServiceTrendChart() {
+    const chartElement = document.getElementById('serviceTrendChart');
+    if (!chartElement) return;
+    
+    // Initialize the chart
+    serviceTrendChart = echarts.init(chartElement);
+    updateServiceTrendChart('monthly'); // Default to monthly view
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      if (serviceTrendChart) {
+        serviceTrendChart.resize();
+      }
+    });
+    
+    // Add click handlers for time period buttons
+    document.querySelectorAll('.time-period-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const period = this.getAttribute('data-period');
+        updateServiceTrendChart(period);
+        
+        // Update active state
+        document.querySelectorAll('.time-period-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  }
+  
+  function updateServiceTrendChart(period) {
+    if (!serviceTrendChart) return;
+    
+    // Get the appropriate data based on the selected period
+    let labels = [];
+    let seriesData = [];
+    
+    if (period === 'daily') {
+      // Last 7 days
+      const today = new Date();
+      labels = Array.from({length: 7}, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (6 - i));
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+      
+      // This is a simplified example - in a real app, you would fetch this data from the server
+      // based on the selected period
+      seriesData = [
+        { name: 'Sales', data: [12, 19, 15, 27, 22, 18, 24] },
+        { name: 'Service', data: [8, 12, 10, 15, 20, 14, 18] },
+        { name: 'inquiry', data: [5, 8, 6, 10, 12, 9, 11] }
+      ];
+    } else if (period === 'weekly') {
+      // Last 4 weeks
+      const today = new Date();
+      labels = Array.from({length: 4}, (_, i) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() - (3 - i) * 7);
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - d.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return `${weekStart.getDate()}/${weekStart.getMonth() + 1} - ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
+      });
+      
+      seriesData = [
+        { name: 'Sales', data: [85, 92, 78, 95] },
+        { name: 'Service', data: [65, 72, 58, 75] },
+        { name: 'inquiry', data: [35, 42, 38, 45] }
+      ];
+    } else {
+      // Monthly (default) - last 6 months
+      const today = new Date();
+      labels = Array.from({length: 6}, (_, i) => {
+        const d = new Date(today);
+        d.setMonth(d.getMonth() - (5 - i));
+        return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      });
+      
+      seriesData = [
+        { name: 'Sales', data: [320, 290, 350, 380, 410, 390] },
+        { name: 'Service', data: [280, 260, 300, 320, 350, 330] },
+        { name: 'inquiry', data: [150, 180, 200, 210, 230, 220] }
+      ];
+    }
+    
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'cross',
+          label: {
+            backgroundColor: '#6a7985'
+          }
+        }
+      },
+      legend: {
+        ...chartThemes.legend,
+        data: seriesData.map(s => s.name)
+      },
+      grid: {
+        ...chartThemes.grid,
+        top: '15%'
+      },
+      xAxis: [
+        {
+          type: 'category',
+          boundaryGap: false,
+          data: labels
+        }
+      ],
+      yAxis: [
+        {
+          type: 'value'
+        }
+      ],
+      series: seriesData.map((s, i) => ({
+        name: s.name,
+        type: 'line',
+        stack: 'Total',
+        smooth: true,
+        lineStyle: {
+          width: 3
+        },
+        showSymbol: false,
+        areaStyle: {
+          opacity: 0.2
+        },
+        emphasis: {
+          focus: 'series'
+        },
+        data: s.data,
+        itemStyle: {
+          color: chartThemes.colors[i % chartThemes.colors.length]
+        }
+      }))
+    };
+    
+    serviceTrendChart.setOption(option, true);
+  }
+
+  // Service Distribution Chart
+  function initServiceDistributionChart() {
+    const chart = echarts.init(document.getElementById('serviceDistributionChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      legend: {
+        ...chartThemes.legend,
+        orient: 'vertical',
+        right: 10,
+        top: 'center',
+        data: chartData.serviceDistribution.data.map(item => item.name)
+      },
+      series: [
+        {
+          name: 'Service Distribution',
+          type: 'pie',
+          radius: ['50%', '70%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false,
+            position: 'center'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: false
+          },
+          data: chartData.serviceDistribution.data.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: chartThemes.colors[index % chartThemes.colors.length]
+            }
+          }))
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Status Overview Chart
+  function initStatusOverviewChart() {
+    const chart = echarts.init(document.getElementById('statusOverviewChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      xAxis: {
+        type: 'category',
+        data: chartData.statusOverview.categories,
+        axisLabel: {
+          interval: 0,
+          rotate: 0
+        }
+      },
+      yAxis: {
+        type: 'value'
+      },
+      series: [
+        {
+          data: chartData.statusOverview.data.map((value, index) => ({
+            value,
+            itemStyle: {
+              color: chartThemes.colors[index % chartThemes.colors.length]
+            }
+          })),
+          type: 'bar',
+          showBackground: true,
+          backgroundStyle: {
+            color: 'rgba(180, 180, 180, 0.1)'
+          },
+          barWidth: '40%'
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Service Performance Chart
+  function initServicePerformanceChart() {
+    const chart = echarts.init(document.getElementById('servicePerformanceChart'));
+    const option = {
+      ...chartThemes,
+      radar: {
+        indicator: chartData.servicePerformance.indicators.map(item => ({
+          name: item.name,
+          max: item.max
+        })),
+        radius: '65%',
+        splitNumber: 4,
+        axisName: {
+          color: '#333',
+          fontSize: 12
+        },
+        splitArea: {
+          areaStyle: {
+            color: ['rgba(67, 97, 238, 0.1)', 'rgba(67, 97, 238, 0.2)'],
+            shadowColor: 'rgba(0, 0, 0, 0.2)',
+            shadowBlur: 10
+          }
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(67, 97, 238, 0.3)'
+          }
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'rgba(67, 97, 238, 0.3)'
+          }
+        }
+      },
+      series: [
+        {
+          type: 'radar',
+          data: [
+            {
+              value: chartData.servicePerformance.indicators.map(item => item.value),
+              name: 'Performance',
+              areaStyle: {
+                color: 'rgba(67, 97, 238, 0.4)'
+              },
+              lineStyle: {
+                width: 2,
+                color: chartThemes.colors[0]
+              },
+              itemStyle: {
+                color: chartThemes.colors[0]
+              }
+            }
+          ]
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Tire Brands Chart
+  function initTireBrandsChart() {
+    const chart = echarts.init(document.getElementById('tireBrandsChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      series: [
+        {
+          name: 'Tire Brands',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: true,
+            formatter: '{b}: {d}%'
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '14',
+              fontWeight: 'bold'
+            }
+          },
+          labelLine: {
+            show: true
+          },
+          data: chartData.tireBrands.data.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: chartThemes.colors[index % chartThemes.colors.length]
+            }
+          }))
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Tire Types Chart
+  function initTireTypesChart() {
+    const chart = echarts.init(document.getElementById('tireTypesChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      series: [
+        {
+          name: 'Tire Types',
+          type: 'pie',
+          radius: '70%',
+          center: ['50%', '50%'],
+          data: chartData.tireTypes.data.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: chartThemes.colors[(index + 2) % chartThemes.colors.length]
+            }
+          })),
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          }
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Service Types Chart
+  function initServiceTypesChart() {
+    const chart = echarts.init(document.getElementById('serviceTypesChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      series: [
+        {
+          name: 'Service Types',
+          type: 'pie',
+          radius: '70%',
+          data: chartData.serviceTypes.data.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: chartThemes.colors[index % chartThemes.colors.length]
+            }
+  })),
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          }
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Inquiry Types Chart
+  function initInquiryTypesChart() {
+    const chart = echarts.init(document.getElementById('inquiryTypesChart'));
+    const option = {
+      ...chartThemes,
+      tooltip: {
+        trigger: 'item',
+        formatter: '{a} <br/>{b}: {c} ({d}%)'
+      },
+      series: [
+        {
+          name: 'Inquiry Types',
+          type: 'pie',
+          radius: '70%',
+          data: chartData.inquiryTypes.data.map((item, index) => ({
+            ...item,
+            itemStyle: {
+              color: chartThemes.colors[(index + 1) % chartThemes.colors.length]
+            }
+          })),
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0, 0, 0, 0.5)'
+            }
+          }
+        }
+      ]
+    };
+    chart.setOption(option);
+    window.addEventListener('resize', chart.resize);
+  }
+
+  // Pie helper
+  function pie(labels, values){
+    return {
+      tooltip:{trigger:'item'},
+      legend:{bottom:0},
+      series:[{
+        type:'pie', radius:['40%','70%'],
+        data:(labels||[]).map((l,i)=>({name:l, value:(values||[])[i]||0})),
+        label:{show:false}, emphasis:{label:{show:true,fontSize:14}}
+      }]
+    }
+  }
+
+  // Multi-series line helper
+  function lineMulti(labels, series){
+    return {
+      tooltip:{trigger:'axis'},
+      legend:{bottom:0},
+      xAxis:{type:'category', data:labels||[]},
+      yAxis:{type:'value'},
+      grid:{left:40,right:10,top:20,bottom:40},
+      series:(series||[]).map(s=>({type:'line', smooth:true, name:s.name, data:s.values||[], areaStyle:{}}))
+    }
+  }
+
+  // Stacked bar helper
+  function stackedBar(labels, series){
+    return {
+      tooltip:{trigger:'axis'},
+      legend:{bottom:0},
+      xAxis:{type:'category', data:labels||[]},
+      yAxis:{type:'value'},
+      grid:{left:40,right:10,top:20,bottom:40},
+      series:(series||[]).map(s=>({type:'bar', name:s.name, stack:'total', emphasis:{focus:'series'}, data:s.data||[]}))
+    }
+  }
+
+  // Simple bar helper
+  function bar(labels, values){
+    return {
+      tooltip:{trigger:'axis'},
+      xAxis:{type:'category', data:labels||[]},
+      yAxis:{type:'value'},
+      grid:{left:40,right:10,top:20,bottom:40},
+      series:[{type:'bar', data:values||[], itemStyle:{color:'#4e79a7'}}]
+    }
+  }
+
+  // Parse the charts data from the template context
+  const chartsData = JSON.parse('{{ charts_json|escapejs }}');
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!window.echarts || !chartsData) {
+      console.error('ECharts not loaded or no chart data');
+      return;
+    }
+
+    // Initialize all charts
+    const initCharts = () => {
+      // Service Trend Chart
+      if (document.getElementById('sTrend') && chartsData.trend_multi) {
+        const trendData = chartsData.trend_multi;
+        const chart = echarts.init(document.getElementById('sTrend'));
+        
+        // Check if we have valid data
+        const hasData = trendData.series && trendData.series.some(s => 
+          s.values && s.values.some(v => v > 0)
+        );
+        
+        if (hasData) {
+          const option = {
+            tooltip: { 
+              trigger: 'axis',
+              formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(item => {
+                  result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                });
+                return result;
+              }
+            },
+            legend: { 
+              data: trendData.series.map(s => s.name),
+              bottom: 0
+            },
+            grid: { 
+              left: '3%', 
+              right: '4%', 
+              top: '5%',
+              bottom: '15%', 
+              containLabel: true 
+            },
+            xAxis: { 
+              type: 'category', 
+              boundaryGap: false, 
+              data: trendData.labels,
+              axisLabel: {
+                rotate: 45,
+                fontSize: 11
+              }
+            },
+            yAxis: { 
+              type: 'value',
+              minInterval: 1
+            },
+            series: trendData.series.map(s => ({
+              name: s.name,
+              type: 'line',
+              smooth: true,
+              data: s.values,
+              lineStyle: { width: 3 },
+              showSymbol: false,
+              areaStyle: {
+                opacity: 0.1
+              }
+            }))
+          };
+          
+          chart.setOption(option);
+          window.addEventListener('resize', function() { 
+            chart.resize(); 
+          });
+        } else {
+          document.getElementById('sTrend').innerHTML = '<div class="text-center text-muted py-4">No trend data available for the selected period</div>';
+        }
+      }
+
+      // Service Distribution Chart
+      if (document.getElementById('sDist') && chartsData.types) {
+        const typesData = chartsData.types;
+        const chart = echarts.init(document.getElementById('sDist'));
+        
+        const hasData = typesData.values && typesData.values.some(v => v > 0);
+        
+        if (hasData) {
+          const option = {
+            tooltip: { 
+              trigger: 'item',
+              formatter: '{b}: {c} ({d}%)'
+            },
+            legend: { 
+              orient: 'vertical', 
+              right: 10, 
+              top: 'center',
+              formatter: function(name) {
+                const data = option.series[0].data;
+                const item = data.find(item => item.name === name);
+                return `${name}: ${item.value} (${Math.round(item.percentage)}%)`;
+              }
+            },
+            series: [{
+              name: 'Service Distribution',
+              type: 'pie',
+              radius: ['40%', '70%'],
+              avoidLabelOverlap: true,
+              itemStyle: { 
+                borderRadius: 5, 
+                borderColor: '#fff', 
+                borderWidth: 2 
+              },
+              label: { 
+                show: true, 
+                formatter: '{b}: {c} ({d}%)',
+                fontSize: 12
+              },
+              emphasis: { 
+                itemStyle: { 
+                  shadowBlur: 10, 
+                  shadowOffsetX: 0, 
+                  shadowColor: 'rgba(0, 0, 0, 0.2)' 
+                } 
+              },
+              data: typesData.labels.map((label, i) => ({
+                name: label,
+                value: typesData.values[i] || 0
+              }))
+            }]
+          };
+          
+          // Calculate percentages for legend
+          const total = option.series[0].data.reduce((sum, item) => sum + item.value, 0);
+          option.series[0].data.forEach(item => {
+            item.percentage = total > 0 ? (item.value / total) * 100 : 0;
+          });
+          
+          chart.setOption(option);
+          window.addEventListener('resize', function() { 
+            chart.resize(); 
+          });
+        } else {
+          document.getElementById('sDist').innerHTML = '<div class="text-center text-muted py-4">No distribution data available</div>';
+        }
+      }
+
+      // Status Overview Chart
+      if (document.getElementById('sStatus') && chartsData.status_by_app) {
+        const statusData = chartsData.status_by_app;
+        const chart = echarts.init(document.getElementById('sStatus'));
+        
+        const hasData = statusData.series && statusData.series.some(s => 
+          s.data && s.data.some(v => v > 0)
+        );
+        
+        if (hasData) {
+          const option = {
+            tooltip: { 
+              trigger: 'axis', 
+              axisPointer: { type: 'shadow' },
+              formatter: function(params) {
+                let result = params[0].name + '<br/>';
+                params.forEach(item => {
+                  result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+                });
+                return result;
+              }
+            },
+            legend: { 
+              data: statusData.series.map(s => s.name),
+              bottom: 0
+            },
+            grid: { 
+              left: '3%', 
+              right: '4%', 
+              top: '5%',
+              bottom: '15%', 
+              containLabel: true 
+            },
+            xAxis: { 
+              type: 'value',
+              minInterval: 1
+            },
+            yAxis: {
+              type: 'category',
+              data: statusData.apps,
+              axisLabel: { 
+                interval: 0, 
+                rotate: 0,
+                fontSize: 12
+              }
+            },
+            series: statusData.series.map((s, i) => ({
+              name: s.name,
+              type: 'bar',
+              stack: 'total',
+              label: { 
+                show: true, 
+                position: 'inside',
+                formatter: function(params) {
+                  return params.value > 0 ? params.value : '';
+                }
+              },
+              emphasis: { 
+                focus: 'series' 
+              },
+              data: s.data,
+              itemStyle: {
+                // Different colors for different series
+                color: ['#4e79a7', '#f28e2c', '#e15759', '#76b7b2', '#59a14f', '#edc949', '#af7aa1', '#ff9da7', '#9c755f', '#bab0ab'][i % 10]
+              }
+            }))
+          };
+          
+          chart.setOption(option);
+          window.addEventListener('resize', function() { 
+            chart.resize(); 
+          });
+        } else {
+          document.getElementById('sStatus').innerHTML = '<div class="text-center text-muted py-4">No status data available</div>';
+        }
+      }
+
+      // Initialize other charts if needed
+      const initSimpleBarChart = (elementId, data) => {
+        if (!document.getElementById(elementId) || !data) return;
+        
+        const el = document.getElementById(elementId);
+        const hasData = data.values && data.values.some(v => v > 0);
+        
+        if (hasData) {
+          const chart = echarts.init(el);
+          const option = {
+            tooltip: {
+              trigger: 'axis',
+              axisPointer: { type: 'shadow' }
+            },
+            grid: {
+              left: '3%',
+              right: '4%',
+              bottom: '3%',
+              top: '5%',
+              containLabel: true
+            },
+            xAxis: {
+              type: 'category',
+              data: data.labels,
+              axisLabel: {
+                interval: 0,
+                rotate: 45,
+                fontSize: 11
+              }
+            },
+            yAxis: {
+              type: 'value',
+              minInterval: 1
+            },
+            series: [{
+              data: data.values,
+              type: 'bar',
+              showBackground: true,
+              backgroundStyle: {
+                color: 'rgba(180, 180, 180, 0.1)'
+              },
+              itemStyle: {
+                color: function(params) {
+                  // Color based on value
+                  const colorList = ['#4e79a7', '#f28e2c', '#e15759', '#76b7b2', '#59a14f', '#edc949'];
+                  return colorList[params.dataIndex % colorList.length];
+                },
+                borderRadius: [4, 4, 0, 0]
+              },
+              label: {
+                show: true,
+                position: 'top',
+                formatter: '{c}'
+              }
+            }]
+          };
+          
+          chart.setOption(option);
+          window.addEventListener('resize', function() { 
+            chart.resize(); 
+          });
+        } else {
+          el.innerHTML = `<div class="text-center text-muted py-4">No data available for ${elementId}</div>`;
+        }
+      };
+
+      // Initialize other charts
+      initSimpleBarChart('sTireBrands', chartsData.top_brands);
+      initSimpleBarChart('sTireTypes', chartsData.tire_types);
+      initSimpleBarChart('sInquiryTypes', chartsData.inquiry_types);
+    };
+
+    // Initialize all charts
+    initCharts();
+      }
+    }
+  });
+</script>
+{% endblock %}

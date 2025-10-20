@@ -1,0 +1,299 @@
+{# Shared order form sections used in order_create and customer_register Step 4 #}
+
+<div class="mt-3">
+    {% with t=order_type %}
+    
+    {# SERVICE ORDER TYPE #}
+    <div id="section-service" class="{% if t and t != 'service' %}d-none{% endif %}">
+        <div class="row g-3">
+              
+       {% if not registration_summary_only %}
+            {# Service Offered Selection #}
+            <div class="col-12">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fa fa-list-check me-2"></i>Service Offered</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% if service_types %}
+                                {% for svc in service_types %}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input service-checkbox" type="checkbox" id="svc_chk_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" data-minutes="{{ svc.estimated_minutes }}">
+                                        <label class="form-check-label" for="svc_chk_{{ forloop.counter }}">{{ svc.name }} <small class="text-muted">({{ svc.estimated_minutes }} mins)</small></label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for checkbox in form.service_selection %}
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        {{ checkbox.tag }}
+                                        <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        {% if form.service_selection.errors %}
+                        <div class="text-danger f-12 mt-2">{{ form.service_selection.errors|striptags }}</div>
+                        {% endif %}
+                        <div class="small text-muted mt-2" id="svc_total_eta_hint" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not registration_summary_only %}
+            {# Service Description and Duration #}
+            <div class="col-md-8">
+                <label class="form-label">{{ form.description.label }}</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <div class="text-danger f-12">{{ form.description.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{{ form.estimated_duration.label }}</label>
+                {{ form.estimated_duration }}
+                {% if form.estimated_duration.errors %}
+                <div class="text-danger f-12">{{ form.estimated_duration.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+        </div>
+    </div>
+
+    {# SALES ORDER TYPE #}
+    <div id="section-sales" class="{% if t and t != 'sales' %}d-none{% endif %}">
+        <div class="row g-3">
+    
+    
+            {# Item Details #}
+            <div class="col-md-12">
+                <label class="form-label">Select Item</label>
+                {{ form.item_name }}
+                {{ form.brand }}
+                {% if form.item_name.errors %}
+                <div class="text-danger f-12">{{ form.item_name.errors|striptags }}</div>
+                {% endif %}
+                <small class="text-muted">Item name and brand will be automatically filled</small>
+            </div>
+            
+            <div class="col-md-4">
+                <label class="form-label">{{ form.quantity.label }}</label>
+                {{ form.quantity }}
+                {% if form.quantity.errors %}
+                <div class="text-danger f-12">{{ form.quantity.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-8 d-none">
+                {{ form.tire_type }}
+                {% if form.tire_type.errors %}
+                <div class="text-danger f-12">{{ form.tire_type.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            
+            {# Tire Service Add-ons #}
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fa fa-list-check me-2"></i>Tire Service Add-ons</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            {% if sales_addons %}
+                                {% for ad in sales_addons %}
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input tire-service-checkbox" type="checkbox" id="oc_ts_{{ forloop.counter }}" name="tire_services" value="{{ ad.name }}" data-minutes="{{ ad.estimated_minutes }}">
+                                        <label class="form-check-label" for="oc_ts_{{ forloop.counter }}">{{ ad.name }} <small class="text-muted">({{ ad.estimated_minutes }} mins)</small></label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                {% for checkbox in form.tire_services %}
+                                <div class="col-md-3">
+                                    <div class="form-check">
+                                        {{ checkbox.tag }}
+                                        <label class="form-check-label" for="{{ checkbox.id_for_label }}">{{ checkbox.choice_label }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        {% if form.tire_services.errors %}
+                        <div class="text-danger f-12 mt-2">{{ form.tire_services.errors|striptags }}</div>
+                        {% endif %}
+                        <div class="small text-muted mt-2" id="tire_services_total_eta_hint" style="display:none;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if not registration_summary_only %}
+            <div class="col-12">
+                <label class="form-label">{{ form.description.label }}</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <div class="text-danger f-12">{{ form.description.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+        </div>
+    </div>
+
+    {# inquiry ORDER TYPE #}
+    <div id="section-inquiry" class="{% if t and t != 'inquiry' %}d-none{% endif %}">
+        <div class="row g-3">
+            
+            <div class="col-md-6">
+                <label class="form-label">{{ form.inquiry_type.label }}</label>
+                {{ form.inquiry_type }}
+                {% if form.inquiry_type.errors %}
+                <div class="text-danger f-12">{{ form.inquiry_type.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6">
+                <label class="form-label">{{ form.contact_preference.label }}</label>
+                {{ form.contact_preference }}
+                {% if form.contact_preference.errors %}
+                <div class="text-danger f-12">{{ form.contact_preference.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-12">
+                <label class="form-label">{{ form.questions.label }}</label>
+                {{ form.questions }}
+                {% if form.questions.errors %}
+                <div class="text-danger f-12">{{ form.questions.errors|striptags }}</div>
+                {% endif %}
+            </div>
+            
+          
+            
+        </div>
+    </div>
+    
+    {% endwith %}
+</div>
+
+<script>
+(function(){
+  // Update service ETA for service selections
+  function updateServiceEta(){
+    var total = 0;
+    document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) total += m;
+    });
+    var etaInput = document.getElementById('id_estimated_duration');
+    var hint = document.getElementById('svc_total_eta_hint');
+    if(etaInput){
+      if(total > 0){ etaInput.value = String(total); }
+      if(hint){
+        if(total > 0){
+          hint.style.display = '';
+          hint.textContent = 'Estimated total time: ' + total + ' mins';
+        } else {
+          hint.style.display = 'none';
+          hint.textContent = '';
+        }
+      }
+    }
+    // Also update the combined total if we're in sales section
+    updateCombinedEta();
+  }
+  
+  // Update tire services ETA for sales add-ons
+  function updateTireServicesEta(){
+    var total = 0;
+    document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) total += m;
+    });
+    var etaInput = document.getElementById('id_estimated_duration');
+    var hint = document.getElementById('tire_services_total_eta_hint');
+    if(hint){
+      if(total > 0){
+        hint.style.display = '';
+        hint.textContent = 'Estimated total time: ' + total + ' mins';
+      } else {
+        hint.style.display = 'none';
+        hint.textContent = '';
+      }
+    }
+    // Also update the combined total if we're in sales section
+    updateCombinedEta();
+  }
+  
+  // Update combined ETA for both service and tire services
+  function updateCombinedEta(){
+    var serviceTotal = 0;
+    var tireServiceTotal = 0;
+    
+    // Calculate service total
+    document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) serviceTotal += m;
+    });
+    
+    // Calculate tire services total
+    document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) tireServiceTotal += m;
+    });
+    
+    var combinedTotal = serviceTotal + tireServiceTotal;
+    var etaInput = document.getElementById('id_estimated_duration');
+    
+    if(etaInput){
+      if(combinedTotal > 0){ 
+        etaInput.value = String(combinedTotal); 
+      }
+    }
+  }
+  
+  document.addEventListener('DOMContentLoaded', function(){
+    // Service selection checkboxes
+    document.querySelectorAll('input[type="checkbox"][name="service_selection"]').forEach(function(cb){
+      cb.addEventListener('change', updateServiceEta);
+    });
+    
+    // Tire service checkboxes
+    document.querySelectorAll('input[type="checkbox"][name="tire_services"]').forEach(function(cb){
+      cb.addEventListener('change', updateTireServicesEta);
+    });
+    
+    // Initialize ETAs
+    updateServiceEta();
+    updateTireServicesEta();
+  });
+})();
+</script>
+
+<style>
+.form-check {
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+.form-check:hover {
+    background-color: #f8f9fa;
+    border-color: #0d6efd;
+}
+.form-check-input:checked + .form-check-label {
+    font-weight: 600;
+    color: #0d6efd;
+}
+.form-check-input {
+    margin-top: 0.3em;
+}
+</style>

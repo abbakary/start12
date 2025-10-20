@@ -1,0 +1,6 @@
+{# Datalist of branches for admin quick selection. Requires 'branches' context variable (list of names). #}
+<datalist id="branchesList">
+  {% for b in branches %}
+    <option value="{{ b }}"></option>
+  {% endfor %}
+</datalist>

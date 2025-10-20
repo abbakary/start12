@@ -1,0 +1,808 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load date_filters %}
+
+{% block title %}Dashboard{% endblock %}
+{% block extra_css %}
+<style>
+    /* Improved spacing and layout */
+    .container-fluid {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    /* KPI Cards improvements */
+    .kpi-card {
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .dashboard-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+    
+    .bg-success-light {
+        background-color: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+    }
+    
+    .bg-warning-light {
+        background-color: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+    
+    .bg-info-light {
+        background-color: rgba(23, 162, 184, 0.1);
+        color: #17a2b8;
+    }
+    
+    .bg-primary-light {
+        background-color: rgba(0, 123, 255, 0.1);
+        color: #007bff;
+    }
+    
+    /* Chart improvements */
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .service-legend, .status-legend {
+        margin-top: 1rem;
+    }
+    
+    .legend-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.5rem;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Action button improvements */
+    .dropdown-toggle::after {
+        display: none;
+    }
+    
+    .dropdown-menu {
+        border: none;
+        border-radius: 8px;
+        min-width: 160px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .dropdown-item {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        margin: 2px 4px;
+        width: auto;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: #495057;
+    }
+    
+    .dropdown-item i {
+        width: 16px;
+        text-align: center;
+    }
+    
+    .btn-outline-primary.dropdown-toggle {
+        border: 1px solid #dee2e6;
+        background: white;
+        color: #6c757d;
+        padding: 3px 6px;
+        font-size: 0.8rem;
+        width: 32px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-outline-primary.dropdown-toggle:hover {
+        background: #f8f9fa;
+        border-color: #6c757d;
+        color: #495057;
+    }
+    
+    /* Table improvements */
+    .table th {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #495057;
+    }
+    
+    .table td {
+        font-size: 0.85rem;
+        vertical-align: middle;
+    }
+    
+    .avatar-initial {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+    
+    /* Card header improvements */
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.25rem;
+    }
+    
+    .card-header h4, .card-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .card-header .d-flex {
+            margin-top: 0.5rem;
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-title">
+        <div class="row">
+            <div class="col-6">
+                <h4>POS Tracker Dashboard</h4>
+            </div>
+            <div class="col-6">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'tracker:dashboard' %}">
+                            <svg class="stroke-icon">
+                                <use href="../assets/svg/icon-sprite.svg#stroke-home"></use>
+                            </svg>
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active">Dashboard</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_superuser %}
+<div class="container-fluid">
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2">
+      <div class="d-flex align-items-center">
+        <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="collapse" data-bs-target="#adminBranchFilter" title="Toggle Admin Filters">
+          <i class="fa fa-cog"></i>
+        </button>
+        <small class="text-muted">Admin Controls</small>
+        {% if request.GET.branch %}
+        <span class="badge bg-info text-dark ms-2">Branch {{ request.GET.branch }}</span>
+        {% endif %}
+      </div>
+      <div class="collapse mt-2" id="adminBranchFilter">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-auto">
+            <label class="form-label fw-medium">Branch Filter</label>
+            <input type="text" name="branch" value="{{ request.GET.branch }}" class="form-control" placeholder="Branch name" list="branchesList">
+            {% include 'tracker/partials/branch_datalist.html' %}
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-primary" type="submit"><i class="fa fa-filter me-1"></i>Apply Filter</button>
+          </div>
+          {% if request.GET.branch %}
+          <div class="col-auto">
+            <a href="?" class="btn btn-outline-secondary"><i class="fa fa-times me-1"></i>Clear</a>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Container-fluid starts -->
+<div class="container-fluid">
+    <!-- First Row: Key Performance Indicators -->
+    <div class="row g-3">
+        <!-- Total Customers -->
+        <div class="col-xxl-3 col-sm-6">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="dashboard-icon bg-success-light">
+                            <i data-feather="users"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">TOTAL CUSTOMERS</h6>
+                            <h3 class="f-w-600 mb-0">{{ total_customers|default:0 }}</h3>
+                            <p class="mb-0 text-muted">{{ new_customers_this_month|default:0 }} new this month</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Orders -->
+        <div class="col-xxl-3 col-sm-6">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="dashboard-icon bg-warning-light">
+                            <i data-feather="shopping-bag"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">TOTAL ORDERS</h6>
+                            <h3 class="f-w-600 mb-0">{{ total_orders|default:0 }}</h3>
+                            <p class="mb-0 text-muted">{{ completed_orders|default:0 }} completed ({{ completion_rate|floatformat:0 }}%)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed Today -->
+        <div class="col-xxl-3 col-sm-6">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="dashboard-icon bg-info-light">
+                            <i data-feather="check-circle"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">Completed Today</h6>
+                            <h3 class="f-w-600 mb-0">{{ completed_today|default:0 }}</h3>
+                            <p class="mb-0 text-muted">as of {{ current_time|date:"H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Orders -->
+        <div class="col-xxl-3 col-sm-6">
+            <div class="card kpi-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="dashboard-icon bg-primary-light">
+                            <i data-feather="clock"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">New Orders</h6>
+                            <h3 class="f-w-600 mb-0">{{ new_orders_today|default:0 }}</h3>
+                            <p class="mb-0 text-muted">created today</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row: Charts -->
+    <div class="row g-3 mt-2">
+        <!-- Service Distribution -->
+        <div class="col-xxl-6 col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5>Service Distribution</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa fa-calendar me-1"></i>Period
+                        </button>
+                        <ul class="dropdown-menu" id="servicePeriodMenu">
+                            <li><a class="dropdown-item" href="#" data-period="week">This Week</a></li>
+                            <li><a class="dropdown-item" href="#" data-period="month">This Month</a></li>
+                            <li><a class="dropdown-item" href="#" data-period="quarter">This Quarter</a></li>
+                            <li><a class="dropdown-item" href="#" data-period="year">This Year</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="serviceDistributionChart" width="400" height="300"></canvas>
+                    </div>
+                    <div class="service-legend">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #4e79a7;"></div>
+                                    <small>Sales</small>
+                                    <div class="fw-bold">{{ type_counts.sales|default:0 }}</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #59a14f;"></div>
+                                    <small>Service</small>
+                                    <div class="fw-bold">{{ type_counts.service|default:0 }}</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #f28e2b;"></div>
+                                    <small>Inquiry</small>
+                                    <div class="fw-bold">{{ type_counts.inquiry|default:0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'tracker:analytics_service' %}" class="btn btn-sm btn-outline-primary">View Details</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Status -->
+        <div class="col-xxl-6 col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5>Order Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="orderStatusChart" width="400" height="300"></canvas>
+                    </div>
+                    <div class="status-legend mt-3">
+                        <div class="row text-center">
+                            <div class="col-3">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #60a5fa;"></div>
+                                    <small>New</small>
+                                    <div class="fw-bold">{{ status_counts.new|default:0 }}</div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #f59e0b;"></div>
+                                    <small>In Progress</small>
+                                    <div class="fw-bold">{{ status_counts.in_progress|default:0 }}</div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #ef4444;"></div>
+                                    <small>Overdue</small>
+                                    <div class="fw-bold">{{ status_counts.overdue|default:0 }}</div>
+                                </div>
+                            </div>
+                            <div class="col-3">
+                                <div class="legend-item">
+                                    <div class="legend-color" style="background: #22c55e;"></div>
+                                    <small>Completed</small>
+                                    <div class="fw-bold">{{ status_counts.completed|default:0 }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Third Row: Top Customers -->
+    <div class="row g-3 mt-2">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header card-no-border">
+                    <h4>Top Customers by Orders</h4>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="update-data d-none d-md-block f-light">Top customers by order volume</span>
+                        <a href="{% url 'tracker:customers_list' %}?sort=-order_count" class="ms-auto btn btn-outline-primary btn-sm">
+                            View All <i class="fa fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-borderless">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">#</th>
+                                    <th>Customer</th>
+                                    <th>Contact</th>
+                                    <th>Total Orders</th>
+                                    <th>Last Order</th>
+                                    <th>Registration Date</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for customer in top_customers %}
+                                <tr class="border-bottom">
+                                    <td class="ps-4 fw-600">{{ forloop.counter }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar me-2">
+                                                <div class="avatar-initial bg-soft-{% cycle 'primary' 'success' 'warning' 'danger' 'info' %} rounded-circle d-flex align-items-center justify-content-center">
+                                                    <span class="text-{% cycle 'primary' 'success' 'warning' 'danger' 'info' %} fw-600">
+                                                        {{ customer.full_name|slice:":1"|upper }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="fw-600">{{ customer.full_name|default:'Unknown' }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            {% if customer.phone %}
+                                            <a href="tel:{{ customer.phone }}" class="text-muted small">{{ customer.phone }}</a>
+                                            {% endif %}
+                                            {% if customer.email %}
+                                            <a href="mailto:{{ customer.email }}" class="text-muted small text-truncate" style="max-width: 150px;" title="{{ customer.email }}">
+                                                {{ customer.email }}
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="fw-600">{{ customer.order_count }} order{{ customer.order_count|pluralize }}</td>
+                                    <td>
+                                        {% if customer.latest_order_date %}
+                                        <span class="fw-600">{{ customer.latest_order_date|date:"Y-m-d" }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-600">{{ customer.registration_date|date:"Y-m-d" }}</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        {% if customer.id %}
+                                        <div class="dropdown">
+                                            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fa fa-ellipsis-h"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'tracker:customer_detail' customer.id %}">
+                                                        <i class="fa fa-eye text-primary me-2"></i>
+                                                        View Details
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'tracker:create_order_for_customer' customer.id %}">
+                                                        <i class="fa fa-plus-circle text-success me-2"></i>
+                                                        New Order
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="tel:{{ customer.phone|default:'#' }}">
+                                                        <i class="fa fa-phone text-info me-2"></i>
+                                                        Call Customer
+                                                    </a>
+                                                </li>
+                                                {% if customer.email %}
+                                                <li>
+                                                    <a class="dropdown-item" href="mailto:{{ customer.email }}">
+                                                        <i class="fa fa-envelope text-warning me-2"></i>
+                                                        Send Email
+                                                    </a>
+                                                </li>
+                                                {% endif %}
+                                            </ul>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted small">No actions</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-users fa-2x text-muted mb-2"></i>
+                                            <span class="text-muted">No customer data available</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fourth Row: Recent Orders -->
+    <div class="row g-3 mt-2">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header card-no-border">
+                    <h4>Recent Orders</h4>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="update-data d-none d-md-block f-light">Latest 10 orders</span>
+                        <a href="{% url 'tracker:orders_list' %}" class="ms-auto btn btn-outline-primary btn-sm">
+                            View All <i class="fa fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive custom-scrollbar" style="max-height: 400px;">
+                        <table class="table table-hover table-borderless">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Order #</th>
+                                    <th>Customer</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th class="text-end pe-4">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr class="border-bottom">
+                                    <td class="ps-4">
+                                        <a href="{% url 'tracker:order_detail' order.id %}" class="text-primary fw-600">#{{ order.order_number }}</a>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar me-2">
+                                                <div class="avatar-initial bg-soft-{% cycle 'primary' 'success' 'warning' 'danger' 'info' %} rounded-circle d-flex align-items-center justify-content-center">
+                                                    <span class="text-{% cycle 'primary' 'success' 'warning' 'danger' 'info' %} fw-600">
+                                                        {{ order.customer.full_name|default:'W'|slice:":1"|upper }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="fw-600">{{ order.customer.full_name|default:'Walk-in Customer' }}</div>
+                                                <div class="small text-muted">{{ order.customer.phone|default:'' }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-soft-{% if order.type == 'sales' %}primary{% elif order.type == 'service' %}success{% else %}secondary{% endif %} text-{% if order.type == 'sales' %}primary{% elif order.type == 'service' %}success{% else %}secondary{% endif %}">
+                                            <i class="fa fa-{% if order.type == 'sales' %}shopping-cart{% elif order.type == 'service' %}tools{% else %}question-circle{% endif %} me-1"></i>
+                                            {{ order.get_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-soft-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}warning{% elif order.status == 'new' %}info{% elif order.status == 'overdue' %}danger{% else %}secondary{% endif %} text-{% if order.status == 'completed' %}success{% elif order.status == 'in_progress' %}warning{% elif order.status == 'new' %}info{% elif order.status == 'overdue' %}danger{% else %}secondary{% endif %} p-2">
+                                            <i class="fa fa-{% if order.status == 'completed' %}check-circle{% elif order.status == 'in_progress' %}spinner fa-spin{% elif order.status == 'new' %}clock{% elif order.status == 'overdue' %}exclamation-triangle{% else %}ellipsis-h{% endif %} me-1"></i>
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-flex flex-column">
+                                            <span class="fw-600">{{ order.created_at|date:"Y-m-d H:i" }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fa fa-inbox fa-2x text-muted mb-2"></i>
+                                            <span class="text-muted">No recent orders found</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Container-fluid Ends -->
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  document.addEventListener('DOMContentLoaded', function(){
+    // Progress bars init (existing)
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar){
+      var width = bar.dataset.width;
+      bar.style.width = width + '%';
+      bar.setAttribute('aria-valuenow', width);
+    });
+
+    // Service Distribution Chart (Bar Chart)
+    var serviceChart = null;
+    try{
+      var serviceCanvas = document.getElementById('serviceDistributionChart');
+      if (serviceCanvas) {
+        var ctx = serviceCanvas.getContext('2d');
+        serviceChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Sales', 'Service', 'Inquiry'],
+            datasets: [{
+              label: 'Current Period',
+              data: [
+                {{ type_counts.sales|default:0 }},
+                {{ type_counts.service|default:0 }},
+                {{ type_counts.inquiry|default:0 }}
+              ],
+              backgroundColor: [
+                'rgba(78, 121, 167, 0.8)',
+                'rgba(89, 161, 79, 0.8)',
+                'rgba(242, 142, 43, 0.8)'
+              ],
+              borderColor: [
+                'rgb(78, 121, 167)',
+                'rgb(89, 161, 79)',
+                'rgb(242, 142, 43)'
+              ],
+              borderWidth: 1,
+              borderRadius: 6,
+              barPercentage: 0.6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': ' + context.parsed.y;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: {
+                  drawBorder: false
+                },
+                ticks: {
+                  stepSize: 1
+                }
+              },
+              x: {
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Period selection handling for Service Distribution
+      (function(){
+        var menu = document.getElementById('servicePeriodMenu');
+        if(!menu) return;
+        menu.addEventListener('click', function(e){
+          var link = e.target.closest('.dropdown-item[data-period]');
+          if(!link) return;
+          e.preventDefault();
+          var period = link.getAttribute('data-period');
+          fetchAndUpdateServiceChart(period);
+        });
+
+        async function fetchAndUpdateServiceChart(period){
+          try{
+            var params = new URLSearchParams();
+            if(period) params.set('period', period);
+            var urlParams = new URLSearchParams(window.location.search);
+            var branch = urlParams.get('branch');
+            if(branch) params.set('branch', branch);
+            var res = await fetch('/api/service-distribution/?' + params.toString(), { headers: { 'Accept': 'application/json' }});
+            var json = await res.json();
+            if(json && json.success && serviceChart){
+              if(Array.isArray(json.values)){
+                serviceChart.data.datasets[0].data = json.values;
+              }
+              if(json.label){
+                serviceChart.data.datasets[0].label = json.label;
+              }
+              serviceChart.update();
+            }
+          }catch(err){
+            console.error('Failed to update service distribution chart:', err);
+          }
+        }
+      })();
+    }catch(e){
+      console.error('Error creating service distribution chart:', e);
+    }
+
+    // Order Status Chart using Chart.js with proper tooltips
+    try{
+      var statusCanvas = document.getElementById('orderStatusChart');
+      if (statusCanvas) {
+        var ctx = statusCanvas.getContext('2d');
+        var statusChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['New', 'In Progress', 'Overdue', 'Completed', 'Cancelled'],
+            datasets: [{
+              data: [
+                {{ status_counts.new|default:0 }},
+                {{ status_counts.in_progress|default:0 }},
+                {{ status_counts.overdue|default:0 }},
+                {{ status_counts.completed|default:0 }},
+                {{ status_counts.cancelled|default:0 }}
+              ],
+              backgroundColor: [
+                '#60a5fa', // New - blue
+                '#f59e0b', // In Progress - amber
+                '#ef4444', // Overdue - red
+                '#22c55e', // Completed - green
+                '#94a3b8'  // Cancelled - gray
+              ],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    var label = context.label || '';
+                    var value = context.parsed || 0;
+                    var total = context.dataset.data.reduce((a, b) => a + b, 0);
+                    var percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                    return label + ': ' + value + ' (' + percentage + '%)';
+                  }
+                }
+              }
+            },
+            cutout: '55%'
+          }
+        });
+      }
+    }catch(e){
+      console.error('Error creating order status chart:', e);
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InspectionPro - Multi-Role Inspection System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary: #3498db;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --inspector: #3498db;
+            --customer: #9b59b6;
+            --admin: #e74c3c;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--secondary), var(--dark));
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            color: var(--primary);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-role {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .role-inspector {
+            background-color: var(--inspector);
+        }
+
+        .role-customer {
+            background-color: var(--customer);
+        }
+
+        .role-admin {
+            background-color: var(--admin);
+        }
+
+        .user-views {
+            display: flex;
+            background-color: white;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .user-view-btn {
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            flex: 1;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .user-view-btn.active {
+            color: white;
+        }
+
+        .user-view-btn.inspector.active {
+            background-color: var(--inspector);
+        }
+
+        .user-view-btn.customer.active {
+            background-color: var(--customer);
+        }
+
+        .user-view-btn.admin.active {
+            background-color: var(--admin);
+        }
+
+        .user-view-btn:hover:not(.active) {
+            background-color: var(--light);
+        }
+
+        .page {
+            display: none;
+            background-color: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .inspection-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .inspection-steps {
+            margin: 25px 0;
+        }
+
+        .step {
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #ddd;
+        }
+
+        .step.completed {
+            border-left-color: var(--success);
+            background-color: #f0f9f4;
+        }
+
+        .step.in-progress {
+            border-left-color: var(--warning);
+            background-color: #fef9e7;
+        }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .step-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-in-progress {
+            background-color: #fef9e7;
+            color: #8a6d3b;
+        }
+
+        .step-description {
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .image-section {
+            margin-top: 15px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .image-upload {
+            margin-top: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background-color: #f8f9fa;
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            color: #ddd;
+            margin-bottom: 10px;
+        }
+
+        .image-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--danger);
+        }
+
+        .report-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .report-options {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stat-icon {
+            font-size: 30px;
+            margin-bottom: 10px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-icon.inspector {
+            background-color: rgba(52, 152, 219, 0.1);
+            color: var(--inspector);
+        }
+
+        .stat-icon.customer {
+            background-color: rgba(155, 89, 182, 0.1);
+            color: var(--customer);
+        }
+
+        .stat-icon.admin {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--admin);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .comments-section {
+            margin-top: 20px;
+        }
+
+        .comment {
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .comment-author {
+            font-weight: 500;
+        }
+
+        .comment-date {
+            color: #777;
+        }
+
+        .comment-text {
+            color: #555;
+        }
+
+        .add-comment {
+            margin-top: 20px;
+        }
+
+        .comment-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 80px;
+            margin-bottom: 10px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .user-views {
+                flex-direction: column;
+            }
+            
+            .report-options {
+                flex-direction: column;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-clipboard-check"></i>
+                    InspectionPro
+                </div>
+                <div class="user-info">
+                    <div class="user-name">John Doe</div>
+                    <div class="user-role role-inspector" id="current-role">Inspector</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="user-views">
+            <div class="user-view-btn inspector active" data-user="inspector">
+                <i class="fas fa-user-hard-hat"></i> Inspector View
+            </div>
+            <div class="user-view-btn customer" data-user="customer">
+                <i class="fas fa-user-tie"></i> Customer View
+            </div>
+            <div class="user-view-btn admin" data-user="admin">
+                <i class="fas fa-user-cog"></i> Admin View
+            </div>
+        </div>
+
+        <!-- Inspector Detail Page -->
+        <div class="page active" id="inspector-detail">
+            <div class="page-header">
+                <h1 class="page-title">Inspection Details - 123 Main Street</h1>
+                <div class="action-buttons">
+                    <button class="btn btn-primary"><i class="fas fa-save"></i> Save Inspection</button>
+                    <button class="btn btn-success"><i class="fas fa-flag-checkered"></i> Complete Inspection</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Inspection Information</h2>
+                    <span class="step-status status-in-progress">In Progress</span>
+                </div>
+                <div class="inspection-info">
+                    <div class="info-item">
+                        <span class="info-label">Inspection ID</span>
+                        <span class="info-value">INSP-2023-001</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Property Address</span>
+                        <span class="info-value">123 Main Street, Springfield</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Customer</span>
+                        <span class="info-value">Jane Smith</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Scheduled Date</span>
+                        <span class="info-value">October 15, 2023</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inspection-steps">
+                <div class="step completed">
+                    <div class="step-header">
+                        <h3 class="step-title">1. Exterior Inspection</h3>
+                        <span class="step-status status-completed">Completed</span>
+                    </div>
+                    <p class="step-description">Check the exterior of the property including roof, siding, foundation, and landscaping.</p>
+                    
+                    <div class="image-section">
+                        <h4 class="section-title"><i class="fas fa-camera"></i> Attached Images</h4>
+                        <div class="image-preview">
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Exterior front">
+                                <div class="remove-image"><i class="fas fa-times"></i></div>
+                            </div>
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Exterior side">
+                                <div class="remove-image"><i class="fas fa-times"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step in-progress">
+                    <div class="step-header">
+                        <h3 class="step-title">2. Interior Inspection</h3>
+                        <span class="step-status status-in-progress">In Progress</span>
+                    </div>
+                    <p class="step-description">Inspect all interior rooms, checking for structural issues, water damage, and electrical systems.</p>
+                    
+                    <div class="image-section">
+                        <h4 class="section-title"><i class="fas fa-camera"></i> Attached Images</h4>
+                        <div class="image-preview">
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Living room">
+                                <div class="remove-image"><i class="fas fa-times"></i></div>
+                            </div>
+                        </div>
+                        
+                        <div class="image-upload">
+                            <div class="upload-area">
+                                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <p>Click or drag images to upload for this step</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step">
+                    <div class="step-header">
+                        <h3 class="step-title">3. Plumbing Inspection</h3>
+                        <span class="step-status status-pending">Pending</span>
+                    </div>
+                    <p class="step-description">Check all plumbing fixtures, pipes, water pressure, and look for leaks.</p>
+                    
+                    <div class="image-section">
+                        <h4 class="section-title"><i class="fas fa-camera"></i> Attached Images</h4>
+                        <div class="image-preview">
+                            <!-- No images yet -->
+                        </div>
+                        
+                        <div class="image-upload">
+                            <div class="upload-area">
+                                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                                <p>Click or drag images to upload for this step</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section">
+                <h2 class="section-title"><i class="fas fa-file-alt"></i> Generate Report</h2>
+                <p>Once the inspection is complete, you can generate reports in different formats.</p>
+                <div class="report-options">
+                    <button class="btn btn-primary"><i class="fab fa-html5"></i> Generate HTML Report</button>
+                    <button class="btn btn-danger"><i class="fas fa-file-pdf"></i> Generate PDF Report</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Detail Page -->
+        <div class="page" id="customer-detail">
+            <div class="page-header">
+                <h1 class="page-title">Your Inspection Report - 123 Main Street</h1>
+                <div class="action-buttons">
+                    <button class="btn btn-primary"><i class="fab fa-html5"></i> View HTML Report</button>
+                    <button class="btn btn-danger"><i class="fas fa-file-pdf"></i> Download PDF</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Inspection Summary</h2>
+                    <span class="step-status status-in-progress">In Progress</span>
+                </div>
+                <div class="inspection-info">
+                    <div class="info-item">
+                        <span class="info-label">Inspection ID</span>
+                        <span class="info-value">INSP-2023-001</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Property Address</span>
+                        <span class="info-value">123 Main Street, Springfield</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Inspector</span>
+                        <span class="info-value">John Doe</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Inspection Date</span>
+                        <span class="info-value">October 15, 2023</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inspection-steps">
+                <div class="step completed">
+                    <div class="step-header">
+                        <h3 class="step-title">1. Exterior Inspection</h3>
+                        <span class="step-status status-completed">Completed</span>
+                    </div>
+                    <p class="step-description">Check the exterior of the property including roof, siding, foundation, and landscaping.</p>
+                    <p><strong>Findings:</strong> Minor cracks in driveway, roof in good condition.</p>
+                    
+                    <div class="image-section">
+                        <h4 class="section-title"><i class="fas fa-images"></i> Inspection Images</h4>
+                        <div class="image-preview">
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Exterior front">
+                            </div>
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Exterior side">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step in-progress">
+                    <div class="step-header">
+                        <h3 class="step-title">2. Interior Inspection</h3>
+                        <span class="step-status status-in-progress">In Progress</span>
+                    </div>
+                    <p class="step-description">Inspect all interior rooms, checking for structural issues, water damage, and electrical systems.</p>
+                    <p><strong>Findings:</strong> Inspection in progress. No issues reported so far.</p>
+                    
+                    <div class="image-section">
+                        <h4 class="section-title"><i class="fas fa-images"></i> Inspection Images</h4>
+                        <div class="image-preview">
+                            <div class="preview-item">
+                                <img src="https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="Living room">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comments-section">
+                <h2 class="section-title"><i class="fas fa-comments"></i> Comments & Notes</h2>
+                <div class="comment">
+                    <div class="comment-header">
+                        <span class="comment-author">John Doe (Inspector)</span>
+                        <span class="comment-date">October 15, 2023 - 10:30 AM</span>
+                    </div>
+                    <p class="comment-text">The exterior inspection is complete. I found minor cracks in the driveway that should be monitored. The roof appears to be in excellent condition with no visible damage.</p>
+                </div>
+                
+                <div class="add-comment">
+                    <h3 class="section-title">Add Your Comment</h3>
+                    <textarea class="comment-input" placeholder="Type your question or comment here..."></textarea>
+                    <button class="btn btn-primary"><i class="fas fa-paper-plane"></i> Submit Comment</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Detail Page -->
+        <div class="page" id="admin-detail">
+            <div class="page-header">
+                <h1 class="page-title">Inspection Management - 123 Main Street</h1>
+                <div class="action-buttons">
+                    <button class="btn btn-warning"><i class="fas fa-edit"></i> Edit Inspection</button>
+                    <button class="btn btn-danger"><i class="fas fa-trash"></i> Delete Inspection</button>
+                </div>
+            </div>
+
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon inspector">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="stat-value">76%</div>
+                    <div class="stat-label">Inspection Progress</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon customer">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">Images Uploaded</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon admin">
+                        <i class="fas fa-flag"></i>
+                    </div>
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Issues Identified</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Inspection Overview</h2>
+                </div>
+                <div class="inspection-info">
+                    <div class="info-item">
+                        <span class="info-label">Inspection ID</span>
+                        <span class="info-value">INSP-2023-001</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Property Address</span>
+                        <span class="info-value">123 Main Street, Springfield</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Customer</span>
+                        <span class="info-value">Jane Smith</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Inspector</span>
+                        <span class="info-value">John Doe</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Scheduled Date</span>
+                        <span class="info-value">October 15, 2023</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Status</span>
+                        <span class="info-value"><span class="step-status status-in-progress">In Progress</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Inspection Timeline</h2>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Completed</th>
+                            <th>Images</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Exterior Inspection</td>
+                            <td><span class="step-status status-completed">Completed</span></td>
+                            <td>Oct 15, 9:00 AM</td>
+                            <td>Oct 15, 10:30 AM</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td>Interior Inspection</td>
+                            <td><span class="step-status status-in-progress">In Progress</span></td>
+                            <td>Oct 15, 10:45 AM</td>
+                            <td>-</td>
+                            <td>2</td>
+                        </tr>
+                        <tr>
+                            <td>Plumbing Inspection</td>
+                            <td><span class="step-status status-pending">Pending</span></td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="report-section">
+                <h2 class="section-title"><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+                <div class="report-options">
+                    <button class="btn btn-primary"><i class="fab fa-html5"></i> HTML Report</button>
+                    <button class="btn btn-danger"><i class="fas fa-file-pdf"></i> PDF Report</button>
+                    <button class="btn btn-success"><i class="fas fa-chart-pie"></i> Analytics Report</button>
+                    <button class="btn btn-warning"><i class="fas fa-file-excel"></i> Export Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // User view switching
+        document.querySelectorAll('.user-view-btn').forEach(option => {
+            option.addEventListener('click', () => {
+                // Remove active class from all user options
+                document.querySelectorAll('.user-view-btn').forEach(o => {
+                    o.classList.remove('active');
+                });
+                
+                // Add active class to clicked option
+                option.classList.add('active');
+                
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // Show corresponding page
+                const userId = option.getAttribute('data-user');
+                document.getElementById(`${userId}-detail`).classList.add('active');
+                
+                // Update current role display
+                const roleElement = document.getElementById('current-role');
+                roleElement.textContent = userId.charAt(0).toUpperCase() + userId.slice(1);
+                roleElement.className = 'user-role role-' + userId;
+            });
+        });
+        
+        // Image upload simulation
+        document.querySelectorAll('.upload-area').forEach(area => {
+            area.addEventListener('click', function() {
+                // In a real app, this would open a file picker
+                // For demo purposes, we'll just add a placeholder image
+                const previewContainer = this.parentElement.querySelector('.image-preview');
+                const newImage = document.createElement('div');
+                newImage.className = 'preview-item';
+                newImage.innerHTML = `
+                    <img src="https://images.unsplash.com/photo-1513584684374-8bab748fbf90?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=500&q=80" alt="New image">
+                    <div class="remove-image"><i class="fas fa-times"></i></div>
+                `;
+                previewContainer.appendChild(newImage);
+                
+                // Add remove functionality
+                newImage.querySelector('.remove-image').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    newImage.remove();
+                });
+            });
+        });
+        
+        // Add remove functionality to existing images
+        document.querySelectorAll('.remove-image').forEach(removeBtn => {
+            removeBtn.addEventListener('click', function() {
+                this.closest('.preview-item').remove();
+            });
+        });
+    </script>
+</body>
+</html>

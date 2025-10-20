@@ -1,0 +1,515 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}New Order{% endblock %}
+
+{% block content %}
+  <div class="container-fluid">
+    <div class="page-title">
+      <div class="row">
+        <div class="col-6"><h4>New Order</h4></div>
+        <div class="col-6">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'tracker:orders_list' %}">Orders</a></li>
+            <li class="breadcrumb-item active">Create</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if not customer %}
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Select Customer</h5>
+        <div class="row">
+          <div class="col-md-8">
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" id="customerSearch" placeholder="Search for customer by name, phone, or email...">
+              <button class="btn btn-primary" type="button" id="searchCustomerBtn">
+                <i class="fa fa-search"></i> Search
+              </button>
+            </div>
+            <div id="searchResults" class="list-group" style="display: none;">
+              <!-- Search results will be populated here -->
+            </div>
+            <div id="selectedCustomer" class="mt-3" style="display: none;">
+              <div class="card">
+                <div class="card-body">
+                  <h6 class="card-subtitle mb-2 text-muted">Selected Customer</h6>
+                  <h5 id="customerName" class="card-title"></h5>
+                  <p class="card-text mb-1">Phone: <span id="customerPhone"></span></p>
+                  <p class="card-text mb-1">Email: <span id="customerEmail"></span></p>
+                  <p class="card-text mb-1">Type: <span id="customerType" class="badge bg-secondary"></span></p>
+                  <button class="btn btn-sm btn-outline-secondary" id="changeCustomer">Change Customer</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if customer %}
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Customer Information</h5>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="d-flex align-items-center mb-2">
+              <i class="fa fa-user text-primary me-2"></i>
+              <strong>{{ customer.full_name }}</strong>
+            </div>
+            <div class="d-flex align-items-center mb-2">
+              <i class="fa fa-phone text-success me-2"></i>
+              <span>{{ customer.phone }}</span>
+            </div>
+            {% if customer.email %}
+              <div class="d-flex align-items-center mb-2">
+                <i class="fa fa-envelope text-info me-2"></i>
+                <span>{{ customer.email }}</span>
+              </div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center mb-2">
+              <i class="fa fa-tag text-secondary me-2"></i>
+              <span class="badge bg-secondary">{{ customer.get_customer_type_display|default:"Personal" }}</span>
+            </div>
+            {% if customer.organization_name %}
+              <div class="d-flex align-items-center mb-2">
+                <i class="fa fa-building text-primary me-2"></i>
+                <span>{{ customer.organization_name }}</span>
+              </div>
+            {% endif %}
+            {% if customer.personal_subtype %}
+              <div class="d-flex align-items-center mb-2">
+                <i class="fa fa-user-tag text-info me-2"></i>
+                <span>{{ customer.get_personal_subtype_display }}</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="mt-2">
+          <a href="{% url 'tracker:customer_detail' customer.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="fa fa-eye me-1"></i>View Details
+          </a>
+          <a href="{% url 'tracker:order_start' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fa fa-user-plus me-1"></i>Change Customer
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Customer Vehicles Section -->
+  <div class="container-fluid mt-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">
+          <i class="fa fa-car me-2"></i>Customer Vehicles
+          <span id="vehicleCountBadge" class="badge bg-primary ms-2"></span>
+        </h5>
+        <div id="customerVehiclesContainer">
+          <!-- Vehicles will be loaded here -->
+        </div>
+        <div id="noVehiclesMessage" class="alert alert-info" style="display: none;">
+          <i class="fa fa-info-circle me-2"></i>
+          This customer doesn't have any registered vehicles yet. 
+          <button type="button" class="btn btn-sm btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#addVehicleModal">
+            <i class="fa fa-plus me-1"></i>Add New Vehicle
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if customer %}<input type="hidden" name="customer_id" value="{{ customer.id }}">{% endif %}
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">{{ form.type.label }}</label>
+              {{ form.type }}
+              {% if form.type.errors %}<div class="text-danger f-12">{{ form.type.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{{ form.priority.label }}</label>
+              {{ form.priority }}
+              {% if form.priority.errors %}<div class="text-danger f-12">{{ form.priority.errors|striptags }}</div>{% endif %}
+            </div>
+            <div class="col-md-4" id="vehicleFieldGroup">
+              <label class="form-label">{{ form.vehicle.label }}</label>
+              {{ form.vehicle }}
+              {% if form.vehicle.errors %}<div class="text-danger f-12">{{ form.vehicle.errors|striptags }}</div>{% endif %}
+
+            
+            </div>
+          </div>
+
+          {% include 'tracker/partials/order_form_sections.html' with form=form %}
+
+          <div class="d-flex justify-content-between mt-4">
+            <a class="btn btn-light" href="{% url 'tracker:orders_list' %}">Cancel</a>
+            <div class="d-flex gap-2">
+              <button class="btn btn-success" type="submit">Create Order</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Vehicle Modal -->
+  <div class="modal fade" id="addVehicleModal" tabindex="-1" aria-labelledby="addVehicleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addVehicleModalLabel">Add New Vehicle</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Plate Number</label>
+              <input type="text" id="modalPlateNumber" class="form-control" placeholder="e.g., T123ABC">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Make</label>
+              <input type="text" id="modalMake" class="form-control" placeholder="e.g., Toyota">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Model</label>
+              <input type="text" id="modalModel" class="form-control" placeholder="e.g., Corolla">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Vehicle Type</label>
+              <select id="modalVehicleType" class="form-select">
+                <option value="">Select type</option>
+                <option value="Car">Car</option>
+                <option value="SUV">SUV</option>
+                <option value="Truck">Truck</option>
+                <option value="Motorcycle">Motorcycle</option>
+                <option value="Bus">Bus</option>
+                <option value="Van">Van</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveVehicleBtn">Save Vehicle</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% block extra_js %}
+  <script>
+    (function(){
+      // Handle order type switching
+      var typeEl = document.getElementById('{{ form.type.id_for_label }}') || document.querySelector('[name="{{ form.type.html_name }}"]');
+      function updateSections(){
+        var t = (typeEl && (typeEl.value || (typeEl.options && typeEl.options[typeEl.selectedIndex] && typeEl.options[typeEl.selectedIndex].value))) || '';
+        var svc = document.getElementById('section-service');
+        var sal = document.getElementById('section-sales');
+        var inq = document.getElementById('section-inquiry');
+        if (svc) svc.style.display = (t==='service')? 'block':'none';
+        if (sal) sal.style.display = (t==='sales')? 'block':'none';
+        if (inq) inq.style.display = (t==='inquiry')? 'block':'none';
+        var veh = document.getElementById('vehicleFieldGroup');
+        if (veh) veh.style.display = (t==='inquiry')? 'none':'block';
+      }
+      if(typeEl){ typeEl.addEventListener('change', updateSections); updateSections(); }
+
+      // Auto-select brand when item changes using data-brands mapping
+      (function(){
+        var itemEl = document.getElementById('id_item_name');
+        var brandEl = document.getElementById('id_brand');
+        if (!itemEl || !brandEl) return;
+        var mapping = {};
+        try { mapping = JSON.parse(itemEl.getAttribute('data-items') || '{}'); } catch(e) { mapping = {}; }
+        itemEl.addEventListener('change', function(){
+          var meta = mapping[this.value];
+          if (!meta) return;
+          // brand input is hidden text input; set value directly
+          brandEl.value = meta.brand || '';
+        });
+      })();
+
+      // Handle customer search and selection
+      const searchInput = document.getElementById('customerSearch');
+      const searchBtn = document.getElementById('searchCustomerBtn');
+      const searchResults = document.getElementById('searchResults');
+      const selectedCustomer = document.getElementById('selectedCustomer');
+      const customerForm = document.querySelector('form[method="post"]');
+      
+      // Only initialize customer search if we don't have a customer already
+      if (searchInput && searchBtn && searchResults && selectedCustomer && customerForm) {
+      
+      // Search for customers
+      function searchCustomers() {
+        const query = searchInput.value.trim();
+        if (query.length < 2) {
+          searchResults.style.display = 'none';
+          return;
+        }
+
+        fetch(`/customers/search/?q=${encodeURIComponent(query)}&details=1`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.results && data.results.length > 0) {
+              searchResults.innerHTML = '';
+              data.results.forEach(customer => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action';
+                item.innerHTML = `
+                  <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">${customer.name}</h6>
+                    <small>#${customer.code || customer.id}</small>
+                  </div>
+                  <p class="mb-1">${customer.phone || 'No phone'}</p>
+                  <small>${customer.email || 'No email'}</small>
+                `;
+                item.addEventListener('click', () => selectCustomer(customer));
+                searchResults.appendChild(item);
+              });
+              searchResults.style.display = 'block';
+            } else {
+              searchResults.innerHTML = '<div class="list-group-item">No customers found</div>';
+              searchResults.style.display = 'block';
+            }
+          })
+          .catch(error => {
+            console.error('Error searching customers:', error);
+            searchResults.innerHTML = '<div class="list-group-item text-danger">Error loading customers</div>';
+            searchResults.style.display = 'block';
+          });
+      }
+
+      // Select a customer
+      function selectCustomer(customer) {
+        document.getElementById('customerName').textContent = customer.name;
+        document.getElementById('customerPhone').textContent = customer.phone || 'N/A';
+        document.getElementById('customerEmail').textContent = customer.email || 'N/A';
+        document.getElementById('customerType').textContent = customer.customer_type_display || 'Personal';
+        
+        // Store customer ID in a hidden field
+        let customerIdField = document.querySelector('input[name="customer_id"]');
+        if (!customerIdField) {
+          customerIdField = document.createElement('input');
+          customerIdField.type = 'hidden';
+          customerIdField.name = 'customer_id';
+          customerForm.prepend(customerIdField);
+        }
+        customerIdField.value = customer.id;
+        
+        // Show selected customer and hide search
+        selectedCustomer.style.display = 'block';
+        searchResults.style.display = 'none';
+        searchInput.value = '';
+        
+        // Load customer's vehicles
+        loadCustomerVehicles(customer.id);
+      }
+
+      // Load customer's vehicles
+      function loadCustomerVehicles(customerId) {
+        fetch(`/api/customers/${customerId}/vehicles/`)
+          .then(response => response.json())
+          .then(data => {
+            const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
+            const vehiclesContainer = document.getElementById('customerVehiclesContainer');
+            const noVehiclesMessage = document.getElementById('noVehiclesMessage');
+            const vehicleCountBadge = document.getElementById('vehicleCountBadge');
+            const inlineAddBtn = document.getElementById('addVehicleBtnInline');
+
+            if (vehicleSelect) {
+              // Clear existing options
+              vehicleSelect.innerHTML = '<option value="">Select a vehicle</option>';
+              
+              // Add customer's vehicles
+              if (data.vehicles && data.vehicles.length > 0) {
+                // Show vehicles in a user-friendly way
+                let vehiclesHTML = '<div class="row">';
+                data.vehicles.forEach((vehicle, index) => {
+                  const vehicleLabel = [
+                    vehicle.make || '',
+                    vehicle.model || '',
+                    vehicle.year ? `(${vehicle.year})` : '',
+                    vehicle.license_plate ? `- ${vehicle.license_plate}` : ''
+                  ].filter(Boolean).join(' ');
+                  
+                  // Add option to select dropdown
+                  const option = document.createElement('option');
+                  option.value = vehicle.id;
+                  option.textContent = vehicleLabel || 'Unnamed Vehicle';
+                  vehicleSelect.appendChild(option);
+                  
+                  // Add vehicle card for display
+                  vehiclesHTML += `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                      <div class="card h-100 vehicle-card" data-vehicle-id="${vehicle.id}">
+                        <div class="card-body">
+                          <h6 class="card-title">
+                            <i class="fa fa-car me-2"></i>
+                            ${vehicle.make || 'Vehicle'} ${vehicle.model || ''}
+                          </h6>
+                          <p class="card-text mb-1">
+                            <small class="text-muted">
+                              ${vehicle.license_plate ? `<i class="fa fa-id-card me-1"></i> ${vehicle.license_plate}<br>` : ''}
+                              ${vehicle.year ? `<i class="fa fa-calendar me-1"></i> ${vehicle.year}<br>` : ''}
+                              ${vehicle.vin ? `<i class="fa fa-barcode me-1"></i> ${vehicle.vin}<br>` : ''}
+                            </small>
+                          </p>
+                          <button type="button" class="btn btn-sm btn-outline-primary select-vehicle-btn" data-vehicle-id="${vehicle.id}">
+                            <i class="fa fa-check me-1"></i>Select This Vehicle
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                });
+                vehiclesHTML += '</div>';
+                
+                vehiclesContainer.innerHTML = vehiclesHTML;
+                vehicleCountBadge.textContent = data.vehicles.length;
+                vehicleCountBadge.style.display = 'inline';
+                noVehiclesMessage.style.display = 'none';
+                if (inlineAddBtn) inlineAddBtn.style.display = 'none';
+
+                // Add event listeners to select buttons
+                document.querySelectorAll('.select-vehicle-btn').forEach(button => {
+                  button.addEventListener('click', function() {
+                    const vehicleId = this.getAttribute('data-vehicle-id');
+                    vehicleSelect.value = vehicleId;
+                    
+                    // Highlight selected card
+                    document.querySelectorAll('.vehicle-card').forEach(card => {
+                      card.classList.remove('border-primary');
+                    });
+                    this.closest('.vehicle-card').classList.add('border-primary');
+                  });
+                });
+              } else {
+                // No vehicles found
+                vehiclesContainer.innerHTML = '';
+                vehicleCountBadge.style.display = 'none';
+                noVehiclesMessage.style.display = 'block';
+                if (inlineAddBtn) inlineAddBtn.style.display = 'inline-block';
+              }
+
+              // Enable the vehicle select
+              vehicleSelect.disabled = false;
+            }
+          })
+          .catch(error => {
+            console.error('Error loading vehicles:', error);
+            const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
+            if (vehicleSelect) {
+              vehicleSelect.innerHTML = '<option value="" disabled selected>Error loading vehicles</option>';
+              vehicleSelect.disabled = true;
+            }
+          });
+      }
+
+      // Save new vehicle
+      document.getElementById('saveVehicleBtn').addEventListener('click', function() {
+        const customerId = document.querySelector('input[name="customer_id"]').value;
+        const plateNumber = document.getElementById('modalPlateNumber').value;
+        const make = document.getElementById('modalMake').value;
+        const model = document.getElementById('modalModel').value;
+        const vehicleType = document.getElementById('modalVehicleType').value;
+        
+        // Simple validation
+        if (!make && !model && !plateNumber) {
+          alert('Please fill in at least one vehicle field');
+          return;
+        }
+        
+        // Create vehicle data
+        const vehicleData = new FormData();
+        vehicleData.append('customer_id', customerId);
+        if (plateNumber) vehicleData.append('plate_number', plateNumber);
+        if (make) vehicleData.append('make', make);
+        if (model) vehicleData.append('model', model);
+        if (vehicleType) vehicleData.append('vehicle_type', vehicleType);
+        
+        // Send request to create vehicle
+        fetch(`/vehicles/${customerId}/add/`, {
+          method: 'POST',
+          body: vehicleData,
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addVehicleModal'));
+            modal.hide();
+            
+            // Clear form fields
+            document.getElementById('modalPlateNumber').value = '';
+            document.getElementById('modalMake').value = '';
+            document.getElementById('modalModel').value = '';
+            document.getElementById('modalVehicleType').value = '';
+            
+            // Reload customer vehicles
+            loadCustomerVehicles(customerId);
+            
+            // Show success message
+            alert('Vehicle added successfully!');
+          } else {
+            alert('Error adding vehicle: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error adding vehicle: ' + error.message);
+        });
+      });
+
+      // Event listeners
+      searchBtn.addEventListener('click', searchCustomers);
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchCustomers();
+        }
+      });
+
+      const changeCustomerBtn = document.getElementById('changeCustomer');
+      if (changeCustomerBtn) {
+        changeCustomerBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          selectedCustomer.style.display = 'none';
+          searchInput.focus();
+        });
+      }
+      
+      // Disable the vehicle select by default until a customer is selected
+      const vehicleSelect = document.getElementById('{{ form.vehicle.id_for_label }}');
+      const presetCustomer = document.querySelector('input[name="customer_id"]');
+      if (vehicleSelect && (!presetCustomer || !presetCustomer.value)) {
+        vehicleSelect.disabled = true;
+      }
+      if (presetCustomer && presetCustomer.value) {
+        loadCustomerVehicles(presetCustomer.value);
+      }
+      }
+    })();
+  </script>
+  {% endblock %}
+{% endblock %}

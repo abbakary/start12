@@ -1,0 +1,24 @@
+on
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+now when user(admin) create inspections with its attached photo/images, when view it to flutter app side it well includes the photo with its other contents ,but when inspector do inspectios and submit it to be saved to backends no image/photo shown , so you needs to check which cause and solve the issue also create the assets/image files to store the captured photos

@@ -1,0 +1,174 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6"><h4>{{ page_title }}</h4></div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:orders_list' %}">Orders</a></li>
+          <li class="breadcrumb-item active">Select Customer</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h5 class="card-title mb-3">Select Customer for New Order</h5>
+      <div class="row">
+        <div class="col-md-8">
+          <div class="input-group mb-3">
+            <span class="input-group-text">
+              <i class="fa fa-search"></i>
+            </span>
+            <input type="text" class="form-control" id="customerSearch" placeholder="Search for customer by name, phone, or email..." autocomplete="off">
+          </div>
+          <div id="searchResults" class="list-group" style="display: none; max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+            <!-- Search results will be populated here -->
+          </div>
+          <div id="recentCustomers">
+            <h6><i class="fa fa-history me-2"></i>Recent Customers</h6>
+            <div id="recentCustomersList" class="list-group">
+              <!-- Recent customers will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('customerSearch');
+  const searchResults = document.getElementById('searchResults');
+  const recentCustomersList = document.getElementById('recentCustomersList');
+  let searchTimeout = null;
+  
+  // Load recent customers on page load
+  loadRecentCustomers();
+  
+  // Load recent customers
+  function loadRecentCustomers() {
+    fetch(`/customers/search/?recent=1`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.results && data.results.length > 0) {
+          recentCustomersList.innerHTML = '';
+          data.results.forEach(customer => {
+            const item = createCustomerItem(customer);
+            recentCustomersList.appendChild(item);
+          });
+        } else {
+          recentCustomersList.innerHTML = '<div class="list-group-item text-muted">No recent customers found</div>';
+        }
+      })
+      .catch(error => {
+        console.error('Error loading recent customers:', error);
+        recentCustomersList.innerHTML = '<div class="list-group-item text-danger">Error loading recent customers</div>';
+      });
+  }
+  
+  // Create customer item element
+  function createCustomerItem(customer) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'list-group-item list-group-item-action';
+    item.innerHTML = `
+      <div class="d-flex w-100 justify-content-between">
+        <h6 class="mb-1">${customer.name}</h6>
+        <small class="badge bg-secondary">#${customer.code || customer.id}</small>
+      </div>
+      <div class="d-flex justify-content-between">
+        <small class="text-muted">
+          <i class="fa fa-phone me-1"></i>${customer.phone || 'No phone'}
+        </small>
+        <small class="text-muted">
+          <i class="fa fa-envelope me-1"></i>${customer.email || 'No email'}
+        </small>
+      </div>
+      <div class="mt-1">
+        <span class="badge bg-light text-dark">${customer.customer_type_display || 'Personal'}</span>
+        ${customer.total_visits ? `<span class="badge bg-info ms-1">${customer.total_visits} visits</span>` : ''}
+      </div>
+    `;
+    item.addEventListener('click', () => {
+      // Redirect to create order page for this customer
+      window.location.href = `/customers/${customer.id}/order/new/`;
+    });
+    return item;
+  }
+  
+  // Search for customers with debounce
+  function searchCustomers() {
+    const query = searchInput.value.trim();
+    
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+    
+    // If query is empty, hide results and show recent customers
+    if (query.length === 0) {
+      searchResults.style.display = 'none';
+      document.getElementById('recentCustomers').style.display = 'block';
+      return;
+    }
+    
+    // If query is too short, don't search yet
+    if (query.length < 2) {
+      searchResults.style.display = 'none';
+      return;
+    }
+    
+    // Show loading indicator
+    searchResults.innerHTML = '<div class="list-group-item text-center"><i class="fa fa-spinner fa-spin me-2"></i>Searching...</div>';
+    searchResults.style.display = 'block';
+    document.getElementById('recentCustomers').style.display = 'none';
+    
+    // Set timeout for debounced search
+    searchTimeout = setTimeout(() => {
+      fetch(`/customers/search/?q=${encodeURIComponent(query)}&details=1`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.results && data.results.length > 0) {
+            searchResults.innerHTML = '';
+            data.results.forEach(customer => {
+              const item = createCustomerItem(customer);
+              searchResults.appendChild(item);
+            });
+          } else {
+            searchResults.innerHTML = '<div class="list-group-item text-center text-muted">No customers found matching your search</div>';
+          }
+        })
+        .catch(error => {
+          console.error('Error searching customers:', error);
+          searchResults.innerHTML = '<div class="list-group-item text-center text-danger">Error loading customers</div>';
+        });
+    }, 300); // 300ms delay
+  }
+
+  // Event listeners
+  searchInput.addEventListener('input', searchCustomers);
+  searchInput.addEventListener('focus', function() {
+    if (searchInput.value.trim().length >= 2) {
+      searchResults.style.display = 'block';
+      document.getElementById('recentCustomers').style.display = 'none';
+    }
+  });
+  
+  // Hide results when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+      searchResults.style.display = 'none';
+      document.getElementById('recentCustomers').style.display = 'block';
+    }
+  });
+});
+</script>
+{% endblock %}

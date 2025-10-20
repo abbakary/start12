@@ -1,0 +1,61 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}{{ title|default:"Vehicle" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6"><h4>{{ title|default:"Vehicle" }}</h4></div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:customers_list' %}">Customers</a></li>
+          {% if customer %}
+            <li class="breadcrumb-item"><a href="{% url 'tracker:customer_detail' customer.pk %}">{{ customer.full_name }}</a></li>
+          {% endif %}
+          <li class="breadcrumb-item active">{{ title|default:"Vehicle" }}</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">{{ form.plate_number.label }}</label>
+            {{ form.plate_number }}
+            {% if form.plate_number.errors %}<div class="text-danger f-12">{{ form.plate_number.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.make.label }}</label>
+            {{ form.make }}
+            {% if form.make.errors %}<div class="text-danger f-12">{{ form.make.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.model.label }}</label>
+            {{ form.model }}
+            {% if form.model.errors %}<div class="text-danger f-12">{{ form.model.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ form.vehicle_type.label }}</label>
+            {{ form.vehicle_type }}
+            {% if form.vehicle_type.errors %}<div class="text-danger f-12">{{ form.vehicle_type.errors|striptags }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          {% if customer %}
+          <a class="btn btn-light" href="{% url 'tracker:customer_detail' customer.pk %}">Cancel</a>
+          {% endif %}
+          <button class="btn btn-success" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

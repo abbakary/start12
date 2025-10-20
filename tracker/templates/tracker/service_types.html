@@ -1,0 +1,148 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% block title %}Service Types{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6"><h4>Service Types</h4></div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}"><i class="fa fa-home"></i></a></li>
+          <li class="breadcrumb-item active">Service Types</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Manage Service Types</h5>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTypeModal">
+        <i class="fa fa-plus me-1"></i>Add Type
+      </button>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Estimated Minutes</th>
+              <th>Status</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in types %}
+            <tr>
+              <td>{{ t.name }}</td>
+              <td>{{ t.estimated_minutes }}</td>
+              <td>
+                {% if t.is_active %}
+                  <span class="badge bg-success">Active</span>
+                {% else %}
+                  <span class="badge bg-secondary">Inactive</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" data-edit='{"id":{{ t.id }},"name":"{{ t.name }}","estimated_minutes":{{ t.estimated_minutes }},"is_active":{{ t.is_active|yesno:"true,false" }}}' onclick="editType(this)">
+                  <i class="fa fa-edit me-1"></i>Edit
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-muted p-4">No service types</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal fade" id="addTypeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Service Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control" id="typeName">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Estimated Minutes</label>
+          <input type="number" class="form-control" id="typeMinutes" min="0" value="30">
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="typeActive" checked>
+          <label class="form-check-label" for="typeActive">Active</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-primary" onclick="saveType()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editTypeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Service Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editTypeId">
+        <div class="mb-3">
+          <label class="form-label">Name</label>
+          <input type="text" class="form-control" id="editTypeName">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Estimated Minutes</label>
+          <input type="number" class="form-control" id="editTypeMinutes" min="0">
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="editTypeActive">
+          <label class="form-check-label" for="editTypeActive">Active</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <button class="btn btn-primary" onclick="updateType()">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function saveType(){
+  fetch('{% url "tracker:create_service_type" %}', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: document.getElementById('typeName').value, estimated_minutes: Number(document.getElementById('typeMinutes').value||0), is_active: document.getElementById('typeActive').checked })
+  }).then(r=>r.json()).then(j=>{ if(j.success){ location.reload(); } else { alert(j.error||'Failed'); } });
+}
+function editType(btn){
+  const d = JSON.parse(btn.getAttribute('data-edit'));
+  document.getElementById('editTypeId').value = d.id;
+  document.getElementById('editTypeName').value = d.name;
+  document.getElementById('editTypeMinutes').value = d.estimated_minutes;
+  document.getElementById('editTypeActive').checked = !!d.is_active;
+  new bootstrap.Modal(document.getElementById('editTypeModal')).show();
+}
+function updateType(){
+  const id = document.getElementById('editTypeId').value;
+  fetch('{% url "tracker:update_service_type" 0 %}'.replace('/0/','/'+id+'/'), {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name: document.getElementById('editTypeName').value, estimated_minutes: Number(document.getElementById('editTypeMinutes').value||0), is_active: document.getElementById('editTypeActive').checked })
+  }).then(r=>r.json()).then(j=>{ if(j.success){ location.reload(); } else { alert(j.error||'Failed'); } });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}Monthly Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header and breadcrumbs -->
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-6">
+        <h4>Monthly Reports</h4>
+        <p class="text-muted mb-0">Monthly performance and analytics</p>
+      </div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tracker:reports' %}">Reports</a></li>
+          <li class="breadcrumb-item active">Monthly</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Month selector -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <form method="get" class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Select Month</label>
+              <input type="month" class="form-control" name="month" value="{{ current_month|date:'Y-m' }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary">View Report</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row mt-3">
+    <div class="col-md-3">
+      <div class="card mini-stats-wid">
+        <div class="card-body">
+          <div class="d-flex">
+            <div class="flex-grow-1">
+              <p class="text-muted fw-medium">Total Orders</p>
+              <h4 class="mb-0">{{ stats.total_orders|default:0 }}</h4>
+            </div>
+            <div class="avatar-sm">
+              <span class="avatar-title bg-soft-primary rounded-circle">
+                <i class="fas fa-shopping-cart text-primary font-size-20"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add more stat cards here -->
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-4">Orders by Status</h5>
+          <div id="statusChart" style="height: 300px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-4">Orders by Type</h5>
+          <div id="typeChart" style="height: 300px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="card-title mb-0">Recent Orders</h5>
+            <a href="{% url 'tracker:reports_export' %}?type=monthly&month={{ current_month|date:'Y-m' }}" 
+               class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-download me-1"></i> Export
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-centered table-nowrap mb-0">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                  <td>#{{ order.id }}</td>
+                  <td>{{ order.created_at|date:"M d, Y" }}</td>
+                  <td>{{ order.customer.name|default:"N/A" }}</td>
+                  <td><span class="badge bg-soft-primary">{{ order.type|title }}</span></td>
+                  <td><span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                    {{ order.status|title }}
+                  </span></td>
+                  <td>${{ order.total|default:"0.00" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center">No orders found for this month</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize charts
+  if (document.getElementById('statusChart')) {
+    const statusChart = new ApexCharts(document.querySelector("#statusChart"), {
+      chart: { type: 'donut', height: 300 },
+      series: [{{ status_data.values|join:"," }}],
+      labels: {{ status_data.labels|safe }},
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#9ca3af'],
+      legend: { position: 'bottom' }
+    });
+    statusChart.render();
+  }
+
+  if (document.getElementById('typeChart')) {
+    const typeChart = new ApexCharts(document.querySelector("#typeChart"), {
+      chart: { type: 'bar', height: 300, toolbar: { show: false } },
+      plotOptions: { bar: { horizontal: true } },
+      series: [{ name: 'Orders', data: {{ type_data.values|safe }} }],
+      xaxis: { categories: {{ type_data.labels|safe }} },
+      colors: ['#3b82f6']
+    });
+    typeChart.render();
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,501 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% load date_filters %}
+
+{% block title %}Customer Types - {% endblock %}
+
+{% block extra_css %}
+<style>
+.group-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.group-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.group-card.active {
+  border-color: #007bff;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+}
+.metric-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 10px;
+}
+.loading-spinner {
+  display: none;
+  text-align: center;
+  padding: 20px;
+}
+.customer-table {
+  font-size: 0.9rem;
+}
+.badge-type {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row">
+      <div class="col-6"><h4>Customer Types </h4></div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Home</a></li>
+          <li class="breadcrumb-item active">Customer Types</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <!-- Controls -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <label class="form-label">Time Period</label>
+      <select id="periodSelect" class="form-select">
+        <option value="1month">Last 30 Days</option>
+        <option value="3months">Last 3 Months</option>
+        <option value="6months" selected>Last 6 Months</option>
+        <option value="1year">Last Year</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Activity Filter</label>
+      <select id="activitySelect" class="form-select">
+        <option value="all" selected>All Customers</option>
+        <option value="active">Active (with orders)</option>
+        <option value="inactive">Inactive (no orders)</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Order Type</label>
+      <select id="orderTypeSelect" class="form-select">
+        <option value="all" selected>All Order Types</option>
+        <option value="service">Service Only</option>
+        <option value="sales">Sales Only</option>
+        <option value="inquiry">Inquiry Only</option>
+      </select>
+    </div>
+    {% if user.is_superuser %}
+    <div class="col-md-2">
+      <label class="form-label">Branch (admin)</label>
+      <input type="text" id="branchIdInput" class="form-control" value="{{ request.GET.branch }}" list="branchesList">
+      {% include 'tracker/partials/branch_datalist.html' %}
+    </div>
+    {% endif %}
+    <div class="col-md-3 d-flex align-items-end">
+      <button id="refreshBtn" class="btn btn-primary me-2">
+        <i class="fa fa-refresh"></i> Refresh
+      </button>
+      <button id="exportBtn" class="btn btn-outline-secondary">
+        <i class="fa fa-download"></i> Export
+      </button>
+    </div>
+  </div>
+  
+  <!-- Filter Summary -->
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="alert alert-info">
+        <strong>Current Filter:</strong> <span id="filterSummary">Last 6 Months - All Customers - All Order Types</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overview Metrics -->
+  <div class="row mb-4" id="overviewMetrics">
+    <div class="col-md-4">
+      <div class="card metric-card">
+        <div class="card-body text-center">
+          <h3 id="totalCustomers">-</h3>
+          <p class="mb-0">Total Customers</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card metric-card">
+        <div class="card-body text-center">
+          <h3 id="totalOrders">-</h3>
+          <p class="mb-0">Total Orders</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card metric-card">
+        <div class="card-body text-center">
+          <h3 id="totalRevenue">-</h3>
+          <p class="mb-0">Total Revenue</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer Groups -->
+  <div class="row mb-4" id="customerGroups">
+    <!-- Groups will be loaded here -->
+  </div>
+
+  <!-- Group Details -->
+  <div class="row" id="groupDetails" style="display: none;">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 id="groupDetailsTitle">Group Details</h5>
+        </div>
+        <div class="card-body">
+          <div id="groupDetailsContent">
+            <!-- Details will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div class="loading-spinner" id="loadingSpinner">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading customer types...</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class CustomerGroupsManager {
+  constructor() {
+    this.currentGroup = 'all';
+    this.currentPeriod = '6months';
+    this.currentActivity = 'all';
+    this.currentOrderType = 'all';
+    this.init();
+  }
+
+  init() {
+    this.bindEvents();
+    this.loadData();
+  }
+
+  bindEvents() {
+    document.getElementById('periodSelect').addEventListener('change', (e) => {
+      this.currentPeriod = e.target.value;
+      this.updateFilterSummary();
+      this.loadData();
+    });
+
+    document.getElementById('activitySelect').addEventListener('change', (e) => {
+      this.currentActivity = e.target.value;
+      this.updateFilterSummary();
+      this.loadData();
+    });
+
+    document.getElementById('orderTypeSelect').addEventListener('change', (e) => {
+      this.currentOrderType = e.target.value;
+      this.updateFilterSummary();
+      this.loadData();
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      this.loadData();
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      this.exportData();
+    });
+  }
+
+  updateFilterSummary() {
+    const periodLabels = {
+      '1month': 'Last 30 Days',
+      '3months': 'Last 3 Months',
+      '6months': 'Last 6 Months',
+      '1year': 'Last Year'
+    };
+
+    const activityLabels = {
+      'all': 'All Customers',
+      'active': 'Active Customers',
+      'inactive': 'Inactive Customers'
+    };
+
+    const orderTypeLabels = {
+      'all': 'All Order Types',
+      'service': 'Service Orders Only',
+      'sales': 'Sales Orders Only',
+      'inquiry': 'Inquiry Orders Only'
+    };
+
+    let summary = `${periodLabels[this.currentPeriod]} - ${activityLabels[this.currentActivity]} - ${orderTypeLabels[this.currentOrderType]}`;
+    const b = document.getElementById('branchIdInput');
+    if (b && b.value) summary += ` - Branch ${b.value}`;
+    document.getElementById('filterSummary').textContent = summary;
+  }
+
+  showLoading() {
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('customerGroups').style.opacity = '0.5';
+  }
+
+  hideLoading() {
+    document.getElementById('loadingSpinner').style.display = 'none';
+    document.getElementById('customerGroups').style.opacity = '1';
+  }
+
+  async loadData() {
+    this.showLoading();
+    
+    try {
+      const b = document.getElementById('branchIdInput');
+      const branchParam = (b && b.value) ? `&branch=${encodeURIComponent(b.value)}` : '';
+      const url = `/api/customer-groups-data-fixed/?period=${this.currentPeriod}&group=${this.currentGroup}&activity=${this.currentActivity}&order_type=${this.currentOrderType}${branchParam}`;
+      console.log('Loading data from:', url);
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      console.log('Received data:', data);
+      
+      if (data.success) {
+        this.renderOverview(data.totals);
+        this.renderGroups(data.groups);
+        
+        if (data.group_details) {
+          this.renderGroupDetails(data.group_details);
+        }
+        
+        // Update filter summary with actual data
+        if (data.period_label) {
+          const summary = `${data.period_label} (${data.date_range.start} to ${data.date_range.end}) - ${data.filters.activity} - ${data.filters.order_type}`;
+          document.getElementById('filterSummary').innerHTML = `<strong>Showing:</strong> ${summary}`;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  renderOverview(totals) {
+    document.getElementById('totalCustomers').textContent = totals.customers.toLocaleString();
+    document.getElementById('totalOrders').textContent = totals.orders.toLocaleString();
+    document.getElementById('totalRevenue').textContent = '$' + totals.revenue.toLocaleString();
+  }
+
+  renderGroups(groups) {
+    const container = document.getElementById('customerGroups');
+    container.innerHTML = '';
+
+    Object.entries(groups).forEach(([type, data]) => {
+      const card = this.createGroupCard(type, data);
+      container.appendChild(card);
+    });
+  }
+
+  createGroupCard(type, data) {
+    const col = document.createElement('div');
+    col.className = 'col-md-3 mb-3';
+    
+    col.innerHTML = `
+      <div class="card group-card h-100" data-group="${type}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="card-title mb-0">${data.name}</h6>
+            <span class="badge bg-primary">${data.customer_count}</span>
+          </div>
+          <div class="row text-center">
+            <div class="col-6">
+              <small class="text-muted">Orders</small>
+              <div class="fw-bold">${data.total_orders}</div>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Revenue</small>
+              <div class="fw-bold">$${data.total_revenue.toLocaleString()}</div>
+            </div>
+          </div>
+          <hr>
+          <div class="row text-center">
+            <div class="col-6">
+              <small class="text-muted">Avg Orders</small>
+              <div class="fw-bold">${data.avg_orders}</div>
+            </div>
+            <div class="col-6">
+              <small class="text-muted">Avg Revenue</small>
+              <div class="fw-bold">$${data.avg_revenue}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const card = col.querySelector('.group-card');
+    card.addEventListener('click', () => {
+      this.selectGroup(type, data.name);
+    });
+
+    return col;
+  }
+
+  async selectGroup(type, name) {
+    // Hide overview and other groups
+    document.getElementById('overviewMetrics').style.display = 'none';
+    document.getElementById('customerGroups').style.display = 'none';
+    
+    this.currentGroup = type;
+    
+    // Load group details
+    this.showLoading();
+    
+    try {
+      const b = document.getElementById('branchIdInput');
+      const branchParam = (b && b.value) ? `&branch=${encodeURIComponent(b.value)}` : '';
+      const url = `/api/customer-groups-data-fixed/?period=${this.currentPeriod}&group=${type}&activity=${this.currentActivity}&order_type=${this.currentOrderType}${branchParam}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      console.log('Group details data:', data);
+      
+      if (data.success && data.group_details) {
+        this.renderGroupDetails(data.group_details, name);
+        document.getElementById('groupDetails').style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error loading group details:', error);
+    } finally {
+      this.hideLoading();
+    }
+  }
+
+  showAllGroups() {
+    // Show overview and all groups
+    document.getElementById('overviewMetrics').style.display = 'flex';
+    document.getElementById('customerGroups').style.display = 'flex';
+    document.getElementById('groupDetails').style.display = 'none';
+    
+    // Reset active states
+    document.querySelectorAll('.group-card').forEach(card => {
+      card.classList.remove('active');
+    });
+    
+    this.currentGroup = 'all';
+  }
+
+  renderGroupDetails(details, groupName) {
+    document.getElementById('groupDetailsTitle').innerHTML = `
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0">${groupName || details.stats.name} - Customer Details</h5>
+          <small class="text-muted">${details.customers.length} customers in this type</small>
+        </div>
+        <button class="btn btn-outline-primary" onclick="customerGroupsManager.showAllGroups()">
+          <i class="fa fa-arrow-left me-1"></i> Back to All Types
+        </button>
+      </div>
+    `;
+    
+    const content = document.getElementById('groupDetailsContent');
+    content.innerHTML = `
+      <!-- Group Statistics -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+              <h4>${details.stats.customer_count}</h4>
+              <p class="mb-0">Total Customers</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-success text-white">
+            <div class="card-body text-center">
+              <h4>${details.stats.total_orders}</h4>
+              <p class="mb-0">Total Orders</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-warning text-white">
+            <div class="card-body text-center">
+              <h4>$${details.stats.total_revenue.toLocaleString()}</h4>
+              <p class="mb-0">Total Revenue</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card bg-info text-white">
+            <div class="card-body text-center">
+              <h4>${details.stats.avg_orders}</h4>
+              <p class="mb-0">Avg Orders</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Customer Table -->
+      <div class="table-responsive">
+        <table class="table table-hover customer-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Contact</th>
+              <th>Total Orders</th>
+              <th>Service</th>
+              <th>Sales</th>
+              <th>Inquiry</th>
+              <th>Completed</th>
+              <th>Revenue</th>
+              <th>Last Order</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${details.customers.map(customer => `
+              <tr>
+                <td>
+                  <div class="fw-bold">${customer.full_name}</div>
+                  <small class="text-muted">Registered: ${new Date(customer.registration_date).toLocaleDateString()}</small>
+                </td>
+                <td>
+                  <div>${customer.phone}</div>
+                  ${customer.email ? `<small class="text-muted">${customer.email}</small>` : ''}
+                </td>
+                <td><span class="badge bg-primary">${customer.total_orders}</span></td>
+                <td><span class="badge bg-success">${customer.service_orders}</span></td>
+                <td><span class="badge bg-warning">${customer.sales_orders}</span></td>
+                <td><span class="badge bg-info">${customer.inquiry_orders}</span></td>
+                <td><span class="badge bg-secondary">${customer.completed_orders}</span></td>
+                <td class="fw-bold">$${customer.total_spent}</td>
+                <td>${customer.last_order_date ? new Date(customer.last_order_date).toLocaleDateString() : '-'}</td>
+                <td>
+                  <a href="/customers/${customer.id}/" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  exportData() {
+    const url = `/customer-groups/export/?period=${this.currentPeriod}&group=${this.currentGroup}`;
+    window.open(url, '_blank');
+  }
+}
+
+// Initialize when DOM is loaded
+let customerGroupsManager;
+document.addEventListener('DOMContentLoaded', () => {
+  customerGroupsManager = new CustomerGroupsManager();
+  customerGroupsManager.updateFilterSummary();
+});
+</script>
+{% endblock %}

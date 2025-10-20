@@ -1,0 +1,217 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}Daily Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header and breadcrumbs -->
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-6">
+        <h4>Daily Reports</h4>
+        <p class="text-muted mb-0">Daily performance and analytics</p>
+      </div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'tracker:reports' %}">Reports</a></li>
+          <li class="breadcrumb-item active">Daily</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Date selector -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <form method="get" class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Select Date</label>
+              <input type="date" class="form-control" name="date" value="{{ current_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+              <button type="submit" class="btn btn-primary">View Report</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row mt-3">
+    <div class="col-md-3">
+      <div class="card mini-stats-wid">
+        <div class="card-body">
+          <div class="d-flex">
+            <div class="flex-grow-1">
+              <p class="text-muted fw-medium">Total Orders</p>
+              <h4 class="mb-0">{{ stats.total_orders|default:0 }}</h4>
+            </div>
+            <div class="avatar-sm">
+              <span class="avatar-title bg-soft-primary rounded-circle">
+                <i class="fas fa-shopping-cart text-primary font-size-20"></i>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Add more stat cards here -->
+  </div>
+
+  <!-- Charts Row -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-4">Hourly Order Trends</h5>
+          <div id="hourlyTrends" style="height: 300px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Tables Row -->
+  <div class="row mt-4">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="card-title mb-0">Recent Orders</h5>
+            <a href="{% url 'tracker:reports_export' %}?type=daily&date={{ current_date|date:'Y-m-d' }}" 
+               class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-download me-1"></i> Export
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-centered table-nowrap mb-0">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                  <td>{{ order.created_at|time:"H:i" }}</td>
+                  <td>#{{ order.id }}</td>
+                  <td>{{ order.customer.name|truncatechars:15|default:"N/A" }}</td>
+                  <td><span class="badge bg-soft-primary">{{ order.type|title }}</span></td>
+                  <td><span class="badge bg-{% if order.status == 'completed' %}success{% elif order.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                    {{ order.status|title }}
+                  </span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center">No orders found for this date</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title mb-4">Top Services</h5>
+          <div class="table-responsive">
+            <table class="table table-centered table-nowrap mb-0">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Orders</th>
+                  <th>Revenue</th>
+                  <th>% of Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for service in top_services %}
+                <tr>
+                  <td>{{ service.name }}</td>
+                  <td>{{ service.count }}</td>
+                  <td>${{ service.revenue|floatformat:2 }}</td>
+                  <td>
+                    <div class="progress" style="height: 6px;">
+                      <div class="progress-bar" role="progressbar" 
+                           style="width: {{ service.percentage }}%" 
+                           aria-valuenow="{{ service.percentage }}" 
+                           aria-valuemin="0" 
+                           aria-valuemax="100"></div>
+                    </div>
+                    <span class="ms-2">{{ service.percentage|floatformat:1 }}%</span>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center">No service data available</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize hourly trends chart
+  if (document.getElementById('hourlyTrends')) {
+    const options = {
+      chart: { 
+        type: 'area', 
+        height: 300,
+        toolbar: { show: false },
+        zoom: { enabled: false }
+      },
+      dataLabels: { enabled: false },
+      stroke: { curve: 'smooth', width: 2 },
+      series: [{
+        name: 'Orders',
+        data: {{ hourly_data|safe }}
+      }],
+      xaxis: {
+        categories: ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', 
+                    '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', 
+                    '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'],
+        labels: { show: true },
+        axisBorder: { show: false },
+        axisTicks: { show: false }
+      },
+      yaxis: {
+        labels: { show: false },
+        min: 0
+      },
+      colors: ['#3b82f6'],
+      grid: {
+        borderColor: '#f1f1f1',
+        strokeDashArray: 4,
+        yaxis: { lines: { show: true } }
+      },
+      tooltip: {
+        y: {
+          formatter: function (value) {
+            return value + (value === 1 ? ' order' : ' orders');
+          }
+        }
+      }
+    };
+    new ApexCharts(document.querySelector("#hourlyTrends"), options).render();
+  }
+});
+</script>
+{% endblock %}

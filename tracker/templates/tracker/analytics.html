@@ -1,0 +1,85 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="page-title">
+    <div class="row align-items-center">
+      <div class="col-6">
+        <h4>Analytics Overview</h4>
+      </div>
+      <div class="col-6">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Dashboard</a></li>
+          <li class="breadcrumb-item active">Analytics</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container-fluid">
+  <!-- Period Tabs -->
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link {% if period == 'daily' %}active{% endif %}" href="{% url 'tracker:analytics' %}?period=daily">Daily</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'weekly' %}active{% endif %}" href="{% url 'tracker:analytics' %}?period=weekly">Weekly</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'monthly' or not period %}active{% endif %}" href="{% url 'tracker:analytics' %}?period=monthly">Monthly</a></li>
+    <li class="nav-item"><a class="nav-link {% if period == 'yearly' %}active{% endif %}" href="{% url 'tracker:analytics' %}?period=yearly">Yearly</a></li>
+    <li class="ms-auto"><a class="btn btn-outline-primary" href="{% url 'tracker:reports_export' %}?from={{ export_from }}&to={{ export_to }}">
+      <i class="fa fa-download me-1"></i> Export CSV</a></li>
+  </ul>
+
+  <!-- KPI cards -->
+  <div class="row g-3">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm h-100"><div class="card-body"><p class="text-muted mb-1">Total Orders</p><h3 class="mb-0">{{ totals.total_orders }}</h3></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm h-100"><div class="card-body"><p class="text-muted mb-1">Completed</p><h3 class="mb-0 text-success">{{ totals.completed }}</h3></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm h-100"><div class="card-body"><p class="text-muted mb-1">In Progress</p><h3 class="mb-0 text-warning">{{ totals.in_progress }}</h3></div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm h-100"><div class="card-body"><p class="text-muted mb-1">New Customers</p><h3 class="mb-0">{{ totals.customers }}</h3></div></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row mt-3">
+    <div class="col-xl-8">
+      <div class="card">
+        <div class="card-header"><h5 class="mb-0">Orders Trend</h5></div>
+        <div class="card-body"><div id="aTrend" style="height:360px"></div></div>
+      </div>
+    </div>
+    <div class="col-xl-4">
+      <div class="card mb-3">
+        <div class="card-header"><h6 class="mb-0">By Status</h6></div>
+        <div class="card-body"><div id="aStatus" style="height:220px"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h6 class="mb-0">By Type</h6></div>
+        <div class="card-body"><div id="aType" style="height:220px"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const charts = {{ charts_json|safe }};
+  function pie(title, labels, values){return {tooltip:{trigger:'item'},legend:{bottom:0},series:[{type:'pie',radius:['40%','70%'],data:labels.map((l,i)=>({name:l,value:values[i]||0})),label:{show:false},emphasis:{label:{show:true,fontSize:14}}}]}}
+  function line(labels, values){return {tooltip:{trigger:'axis'},xAxis:{type:'category',data:labels},yAxis:{type:'value'},grid:{left:40,right:10,top:20,bottom:40},series:[{type:'line',smooth:true,data:values,areaStyle:{}}]}}
+  document.addEventListener('DOMContentLoaded',()=>{
+    if(window.echarts){
+      echarts.init(document.getElementById('aTrend')).setOption(line(charts.trend.labels, charts.trend.values));
+      echarts.init(document.getElementById('aStatus')).setOption(pie('Status', charts.status.labels, charts.status.values));
+      echarts.init(document.getElementById('aType')).setOption(pie('Type', charts.type.labels, charts.type.values));
+    }
+  });
+</script>
+{% endblock %}

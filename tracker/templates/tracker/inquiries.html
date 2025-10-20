@@ -1,0 +1,513 @@
+{% extends 'tracker/base.html' %}
+{% load static %}
+{% load date_filters %}
+{% block title %}Inquiries{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="page-title">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h4 class="mb-1">Inquiries</h4>
+            </div>
+            <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                <ol class="breadcrumb mb-0 justify-content-md-end">
+                    <li class="breadcrumb-item"><a href="{% url 'tracker:dashboard' %}">Home</a></li>
+                    <li class="breadcrumb-item active">Inquiries</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats and Filters Row -->
+    <div class="row g-3 mt-1">
+        <!-- Stats Cards -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card kpi-card kpi-total compact border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="kpi-value text-primary">{{ stats.total }}</div>
+                            <div class="kpi-label text-muted">Total Inquiries</div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <div class="avatar-sm rounded-circle bg-primary bg-opacity-10 p-3">
+                                <i class="fa fa-inbox fa-lg text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card kpi-card kpi-resolved compact border-0 h-100">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="kpi-value text-success">{{ stats.resolved }}</div>
+                            <div class="kpi-label text-muted">Resolved</div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <div class="avatar-sm rounded-circle bg-success bg-opacity-10 p-3">
+                                <i class="fa fa-check-circle fa-lg text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-xl-6">
+            <div class="card border-0 h-100">
+                <div class="card-body p-3">
+                    <div class="row g-2 h-100 align-items-center">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">Quick Status Filter</label>
+                            <select class="form-select" onchange="window.location.href = '?status=' + this.value">
+                                <option value="">All Statuses</option>
+                                <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Resolved Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">Quick Type Filter</label>
+                            <select class="form-select" onchange="window.location.href = '?type=' + this.value">
+                                <option value="">All Types</option>
+                                <option value="Pricing" {% if request.GET.type == 'Pricing' %}selected{% endif %}>Pricing</option>
+                                <option value="Services" {% if request.GET.type == 'Services' %}selected{% endif %}>Services</option>
+                                <option value="Appointment Booking" {% if request.GET.type == 'Appointment Booking' %}selected{% endif %}>Appointment</option>
+                                <option value="General" {% if request.GET.type == 'General' %}selected{% endif %}>General</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <a href="?" class="btn btn-outline-secondary w-100">
+                                <i class="fa fa-rotate-left me-2"></i>Reset Filters
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                    <h6 class="mb-0 fw-semibold"><i class="fa fa-sliders me-2 text-primary"></i>Advanced Filters</h6>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+                        <i class="fa fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="collapse" id="filterCollapse">
+                    <div class="card-body">
+                        <form class="row g-3 align-items-end" method="get">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1">Search</label>
+                                <input type="text" name="q" value="{{ request.GET.q|default:'' }}" class="form-control" placeholder="Customer, type, or note...">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold mb-1">Type</label>
+                                <select class="form-select" name="type">
+                                    <option value="" {% if not request.GET.type %}selected{% endif %}>All Types</option>
+                                    <option value="Pricing" {% if request.GET.type == 'Pricing' %}selected{% endif %}>Pricing</option>
+                                    <option value="Services" {% if request.GET.type == 'Services' %}selected{% endif %}>Services</option>
+                                    <option value="Appointment Booking" {% if request.GET.type == 'Appointment Booking' %}selected{% endif %}>Appointment Booking</option>
+                                    <option value="General" {% if request.GET.type == 'General' %}selected{% endif %}>General</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold mb-1">Status</label>
+                                <select class="form-select" name="status">
+                                    <option value="" {% if not request.GET.status %}selected{% endif %}>Any Status</option>
+                                    <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Resolved</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold mb-1">Follow Up</label>
+                                <select class="form-select" name="follow_up">
+                                    <option value="" {% if not request.GET.follow_up %}selected{% endif %}>All</option>
+                                    <option value="required" {% if request.GET.follow_up == 'required' %}selected{% endif %}>Required</option>
+                                    <option value="overdue" {% if request.GET.follow_up == 'overdue' %}selected{% endif %}>Overdue</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1">Date Range</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control" name="start" value="{{ request.GET.start|default:'' }}">
+                                    <span class="input-group-text bg-light border">to</span>
+                                    <input type="date" class="form-control" name="end" value="{{ request.GET.end|default:'' }}">
+                                </div>
+                            </div>
+                            <div class="col-12 mt-3">
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary px-4">
+                                        <i class="fa fa-filter me-2"></i>Apply Filters
+                                    </button>
+                                    <a class="btn btn-outline-secondary" href="?">
+                                        <i class="fa fa-rotate-left me-2"></i>Clear All
+                                    </a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inquiries Table -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+                    <h6 class="mb-0 fw-semibold"><i class="fa fa-list me-2 text-primary"></i>Inquiry List</h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-warning text-dark">
+                            <i class="fa fa-clock me-1"></i>New
+                        </span>
+                        <span class="badge bg-success">
+                            <i class="fa fa-check-circle me-1"></i>Resolved
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="inqTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4" style="width:70px">ID</th>
+                                    <th>Customer Details</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Follow Up</th>
+                                    <th class="text-center" style="width:80px">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for q in inquiries %}
+                                <tr>
+                                    <td class="ps-4 fw-semibold text-muted">#{{ q.id }}</td>
+                                    <td>
+                                        <div class="d-flex flex-column">
+                                            <a href="{% url 'tracker:customer_detail' q.customer.id %}" class="fw-semibold text-decoration-none text-dark">
+                                                {{ q.customer.full_name }}
+                                            </a>
+                                            <small class="text-muted">{{ q.customer.phone|default:'No phone' }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ q.inquiry_type|default:'General' }}</span>
+                                    </td>
+                                    <td>
+                                        {% if q.status == 'created' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fa fa-clock me-1"></i>New
+                                        </span>
+                                        {% elif q.status == 'completed' %}
+                                        <span class="badge bg-success">
+                                            <i class="fa fa-check-circle me-1"></i>Resolved
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ q.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ q.created_at|date:'M j, Y' }}</small>
+                                        <br>
+                                        <small class="text-muted">{{ q.created_at|date:'H:i' }}</small>
+                                    </td>
+                                    <td>
+                                        {% if q.follow_up_date %}
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fa fa-calendar me-1"></i>{{ q.follow_up_date|date:'M j, Y' }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="action-dropdown">
+                                            <button class="btn btn-sm btn-light rounded-circle action-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 32px; height: 32px;">
+                                                <i class="fa fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li class="dropdown-header fw-semibold">Update Status</li>
+                                                <li>
+                                                    <a class="dropdown-item inq-set-status" href="#" data-id="{{ q.id }}" data-status="completed">
+                                                        <i class="fa fa-check-circle text-success me-2"></i>Mark as Resolved
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{% url 'tracker:customer_detail' q.customer.id %}">
+                                                        <i class="fa fa-user me-2"></i>View Customer
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#respondModal" data-id="{{ q.id }}">
+                                                        <i class="fa fa-reply me-2"></i>Respond
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center p-5">
+                                        <div class="py-4">
+                                            <i class="fa fa-inbox fa-3x mb-3 text-muted opacity-50"></i>
+                                            <h6 class="text-muted mb-2">No inquiries found</h6>
+                                            <p class="text-muted small">Try adjusting your filters or search criteria</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center py-3">
+                    <div class="text-muted small">
+                        Showing page {{ inquiries.number }} of {{ inquiries.paginator.num_pages }}
+                    </div>
+                    <nav>
+                        <ul class="pagination mb-0 pagination-sm">
+                            {% if inquiries.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ inquiries.previous_page_number }}">
+                                    <i class="fa fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item disabled">
+                                <span class="page-link">{{ inquiries.number }}</span>
+                            </li>
+                            
+                            {% if inquiries.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ inquiries.next_page_number }}">
+                                    <i class="fa fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Respond Modal -->
+<div class="modal fade" id="respondModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="respondForm">{% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Respond to Inquiry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Response Message</label>
+                        <textarea class="form-control" name="response" rows="4" required placeholder="Type your response to the customer..."></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="follow_up_required" id="followChk">
+                                <label class="form-check-label fw-semibold" for="followChk">Follow-up required</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Follow-up Date</label>
+                            <input class="form-control" type="date" name="follow_up_date">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancel</button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fa fa-paper-plane me-2"></i>Send Response
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'assets/js/datatable/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'assets/js/datatable/datatables/datatable.custom.js' %}"></script>
+<script>
+    // Initialize DataTable
+    (function(){
+        if (window.$ && $('#inqTable').length && $.fn.DataTable) {
+            $('#inqTable').DataTable({
+                pageLength: 12,
+                order: [[4, 'desc']], // sort by Created column
+                dom: 'lfrtip', // length + filter + table + info + pagination
+                language: {
+                    search: "Search inquiries:",
+                    lengthMenu: "Show _MENU_ entries"
+                }
+            });
+        }
+    })();
+
+    // Wire modal action to selected inquiry id
+    (function(){
+        var respondModal = document.getElementById('respondModal');
+        if (respondModal) {
+            respondModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var id = button ? button.getAttribute('data-id') : null;
+                var form = document.getElementById('respondForm');
+                if (id && form) {
+                    var base = "{% url 'tracker:inquiry_respond' 0 %}";
+                    form.action = base.replace('/0/', '/' + id + '/');
+                }
+            });
+        }
+
+        // Status update form submission
+        var statusForm = document.createElement('form');
+        statusForm.method = 'post';
+        statusForm.style.display = 'none';
+        statusForm.innerHTML = `
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="status" id="inqStatusInput">
+        `;
+        document.body.appendChild(statusForm);
+        
+        document.addEventListener('click', function(e){
+            var a = e.target.closest('.inq-set-status');
+            if (!a) return;
+            e.preventDefault();
+            var id = a.getAttribute('data-id');
+            var status = a.getAttribute('data-status');
+            var base = "{% url 'tracker:update_inquiry_status' 0 %}";
+            statusForm.action = base.replace('/0/', '/' + id + '/');
+            statusForm.querySelector('#inqStatusInput').value = status;
+            statusForm.submit();
+        });
+    })();
+</script>
+
+<style>
+    /* KPI Cards Styling */
+    .kpi-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent !important;
+    }
+    
+    .kpi-card.compact {
+        min-height: auto !important;
+    }
+    
+    .kpi-total {
+        border-left-color: #3b82f6 !important;
+    }
+    
+    .kpi-resolved {
+        border-left-color: #10b981 !important;
+    }
+    
+    .kpi-value {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.25rem !important;
+        line-height: 1.2;
+    }
+    
+    .kpi-label {
+        font-size: 0.875rem !important;
+        margin-bottom: 0 !important;
+        color: #6c757d !important;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .avatar-sm {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Action Button Visibility */
+    .action-btn {
+        opacity: 1;
+        visibility: visible;
+        transition: all 0.2s ease;
+        background-color: darkblue; /* Light background for better visibility */
+        border: 1px solid #dee2e6; /* Subtle border */
+    }
+    
+    .action-btn:hover {
+        background-color: #e9ecef; /* Slightly darker on hover */
+        border-color: #adb5bd;
+    }
+    
+    /* Keep hover effects for row highlighting */
+    #inqTable tbody tr:hover .action-btn {
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    /* Keep action button visible when dropdown is open */
+    .action-dropdown.show .action-btn,
+    .action-btn:focus {
+        opacity: 1;
+        visibility: visible;
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+    
+    /* Table Styling */
+    .table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+    
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid #e9ecef;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .kpi-value {
+            font-size: 1.25rem !important;
+        }
+        
+        .action-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,154 @@
+/* Reports Styling */
+.report-filter {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.report-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 20px;
+    height: 100%;
+}
+
+.report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+.report-card .card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #eef0f3;
+    padding: 15px 20px;
+    border-top-left-radius: 10px !important;
+    border-top-right-radius: 10px !important;
+}
+
+.report-card .card-body {
+    padding: 20px;
+}
+
+/* KPI Cards */
+.kpi-card {
+    text-align: center;
+    padding: 20px 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.kpi-card .kpi-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    opacity: 0.8;
+}
+
+.kpi-card .kpi-value {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin: 10px 0;
+}
+
+.kpi-card .kpi-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-card .kpi-change {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.kpi-card .kpi-change.positive {
+    background-color: rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+/* Report Tables */
+.report-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.report-table th {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 12px 15px;
+    border: none;
+}
+
+.report-table td {
+    padding: 15px;
+    vertical-align: middle;
+    border-top: 1px solid #eef0f3;
+}
+
+.report-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Charts */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .report-card {
+        margin-bottom: 15px;
+    }
+    
+    .kpi-card {
+        margin-bottom: 15px;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .no-print, .card-header-right {
+        display: none !important;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: none;
+    }
+    
+    .report-table {
+        width: 100% !important;
+    }
+}

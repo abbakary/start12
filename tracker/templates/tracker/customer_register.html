@@ -1,0 +1,187 @@
+{% extends 'tracker/base.html' %} 
+{% load static %} 
+{% load custom_filters %} 
+{% load date_filters %} 
+
+{% block title %}Register Customer{% endblock %} 
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'assets/css/custom.css' %}">
+<link rel="stylesheet" href="{% static 'assets/css/tz-phone.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-title">
+        <div class="row">
+            <div class="col-6">
+                <h4>Customer Registration</h4>
+            </div>
+            <div class="col-6">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'tracker:customers_list' %}">Customers</a>
+                    </li>
+                    <li class="breadcrumb-item active">Register</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-xl-10">
+            <div class="card">
+                <div class="card-header d-flex align-items-center justify-content-between flex-column flex-md-row">
+                    <div class="d-flex align-items-center w-100">
+                        <h5 class="mb-0 me-3">
+                            Step <span id="currentStepDisplay">{{ step }}</span> of 4
+                        </h5>
+                        <div class="progress w-100" style="height:10px;">
+                            <div id="registrationProgressBar" 
+                                 class="progress-bar" 
+                                 role="progressbar" 
+                                 style="width:0%;" 
+                                 aria-valuenow="{{ step }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="4">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 mt-md-0">
+                        <ul id="registrationSteps" class="list-inline mb-0">
+                            <li class="list-inline-item px-2">
+                                <span class="badge bg-secondary step-indicator {% if step == 1 %}bg-primary{% endif %}">1</span>
+                            </li>
+                            <li class="list-inline-item px-2">
+                                <span class="badge bg-secondary step-indicator {% if step == 2 %}bg-primary{% endif %}">2</span>
+                            </li>
+                            <li class="list-inline-item px-2">
+                                <span class="badge bg-secondary step-indicator {% if step == 3 %}bg-primary{% endif %}">3</span>
+                            </li>
+                            <li class="list-inline-item px-2">
+                                <span class="badge bg-secondary step-indicator {% if step == 4 %}bg-primary{% endif %}">4</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-body" id="registrationWizard">
+                    {# Initial render of the wizard content via partial so subsequent AJAX updates can reuse the same markup #}
+                    {% include 'tracker/partials/customer_registration_form.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/phone_validation.js' %}"></script>
+<script src="{% static 'js/customer_registration.js' %}"></script>
+
+<script>
+// Intent selection functionality for Step 2
+function selectIntent(intentValue) {
+    // Remove previous selections
+    document.querySelectorAll('.intent-card').forEach(card => {
+        card.classList.remove('border-primary', 'bg-light');
+    });
+    
+    // Add selection to clicked card
+    event.currentTarget.classList.add('border-primary', 'bg-light');
+    
+    // Check the corresponding radio button
+    const radioButton = document.querySelector(`input[value="${intentValue}"]`);
+    if (radioButton) {
+        radioButton.checked = true;
+        
+        // Enable the next button
+        const nextBtn = document.getElementById('nextStepBtn');
+        if (nextBtn) {
+            nextBtn.disabled = false;
+        }
+    }
+}
+
+// Service type selection functionality for Step 3
+function selectServiceType(serviceValue) {
+    // Remove previous selections
+    document.querySelectorAll('.service-card').forEach(card => {
+        card.classList.remove('border-primary', 'bg-light');
+    });
+    
+    // Add selection to clicked card
+    event.currentTarget.classList.add('border-primary', 'bg-light');
+    
+    // Check the corresponding radio button
+    const radioButton = document.querySelector(`input[value="${serviceValue}"]`);
+    if (radioButton) {
+        radioButton.checked = true;
+        
+        // Enable the next button
+        const nextBtn = document.getElementById('nextServiceBtn');
+        if (nextBtn) {
+            nextBtn.disabled = false;
+        }
+    }
+}
+
+// Customer type change handler for Step 1 and Step 4
+document.addEventListener('DOMContentLoaded', function() {
+    const customerTypeSelect = document.getElementById('id_customer_type');
+    
+    // Step 1 fields only (customer type moved to Step 1)
+    const personalSubtypeField = document.getElementById('personal-subtype-field');
+    const organizationField = document.getElementById('organization-field');
+    const taxField = document.getElementById('tax-field');
+    
+    function toggleFields() {
+        if (!customerTypeSelect) return;
+        
+        const selectedType = customerTypeSelect.value;
+        
+        // Hide all conditional fields first
+        if (personalSubtypeField) personalSubtypeField.style.display = 'none';
+        if (organizationField) organizationField.style.display = 'none';
+        if (taxField) taxField.style.display = 'none';
+        
+        // Show relevant fields based on selection
+        if (selectedType === 'personal') {
+            if (personalSubtypeField) personalSubtypeField.style.display = 'block';
+        } else if (['company', 'government', 'ngo'].includes(selectedType)) {
+            if (organizationField) organizationField.style.display = 'block';
+            if (taxField) taxField.style.display = 'block';
+        }
+    }
+    
+    if (customerTypeSelect) {
+        customerTypeSelect.addEventListener('change', toggleFields);
+        // Initialize on page load
+        toggleFields();
+    }
+});
+</script>
+
+<style>
+.intent-card, .service-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.intent-card:hover, .service-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.intent-card.border-primary, .service-card.border-primary {
+    border-color: #0d6efd !important;
+    border-width: 2px !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+</style>
+{% endblock %}

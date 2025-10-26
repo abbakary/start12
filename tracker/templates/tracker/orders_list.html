@@ -234,17 +234,7 @@
                 {% elif o.status == 'overdue' %}
                   <span class="badge bg-danger rounded-pill"><i class="fa fa-exclamation-triangle me-1"></i>Overdue</span>
                 {% elif o.status == 'completed' %}
-                  <div class="d-flex flex-column">
-                    <span class="badge bg-success rounded-pill mb-1"><i class="fa fa-check me-1"></i>Completed</span>
-                    <div class="small">
-                      {% if o.estimated_duration and o.actual_duration %}
-                        <span class="badge {{ o|eta_status_badge }}">{{ o|eta_status_label }}</span>
-                        <span class="text-muted ms-1">Actual: {{ o.actual_duration|format_minutes }}</span>
-                      {% elif o.actual_duration %}
-                        <span class="text-muted">Actual: {{ o.actual_duration|format_minutes }}</span>
-                      {% endif %}
-                    </div>
-                  </div>
+                  <span class="badge bg-success rounded-pill"><i class="fa fa-check me-1"></i>Completed</span>
                 {% elif o.status == 'cancelled' %}
                   <span class="badge bg-dark rounded-pill"><i class="fa fa-times me-1"></i>Cancelled</span>
                 {% else %}
@@ -266,22 +256,36 @@
               </td>
               <td class="text-muted small">{{ o.created_at|localtime|date_medium }}</td>
               <td>
-                {% if o.estimated_duration %}
-                  <div class="d-flex flex-column">
-                    {% with lbl=o|eta_status_label %}
-                      <span class="badge {{ o|eta_status_badge }}">{{ lbl|default:'No estimate' }}</span>
-                    {% endwith %}
-                    <small class="text-muted mt-1">
+                <div class="time-tracking-cell">
+                  {% if o.estimated_duration %}
+                    <div class="d-flex gap-3 align-items-center flex-wrap">
+                      <div class="time-item">
+                        <small class="text-muted d-block fw-medium">Est</small>
+                        <div class="time-value fw-semibold">{{ o.estimated_duration|format_minutes }}</div>
+                      </div>
                       {% if o.status == 'completed' and o.actual_duration %}
-                        Est: {{ o.estimated_duration|format_minutes }} • Actual: {{ o.actual_duration|format_minutes }}
-                      {% else %}
-                        Est: {{ o.estimated_duration|format_minutes }}{% if o.status != 'completed' %} • Elapsed: {{ o|elapsed_minutes|format_minutes }}{% endif %}
+                        <div class="time-divider text-muted small">→</div>
+                        <div class="time-item">
+                          <small class="text-muted d-block fw-medium">Actual</small>
+                          <div class="time-value fw-semibold">{{ o.actual_duration|format_minutes }}</div>
+                        </div>
+                        <div class="time-status">
+                          {% with lbl=o|eta_status_label %}
+                            <span class="badge {{ o|eta_status_badge }} rounded-pill badge-sm">{{ lbl }}</span>
+                          {% endwith %}
+                        </div>
+                      {% elif o.status == 'in_progress' or o.status == 'created' or o.status == 'overdue' %}
+                        <div class="time-divider text-muted small">→</div>
+                        <div class="time-item">
+                          <small class="text-muted d-block fw-medium">Elapsed</small>
+                          <div class="time-value fw-semibold">{{ o|elapsed_minutes|format_minutes }}</div>
+                        </div>
                       {% endif %}
-                    </small>
-                  </div>
-                {% else %}
-                  <span class="badge bg-secondary">No estimate</span>
-                {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="badge bg-light text-muted">No estimate</span>
+                  {% endif %}
+                </div>
               </td>
               <td class="text-end">
                 <div class="dropdown actions-dropdown">
@@ -624,5 +628,60 @@ td.text-end:last-child {
 .card .card-body .form-select:focus {
     border-color: #86b7fe;
     box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Time Tracking Cell Styling */
+.time-tracking-cell {
+    display: flex;
+    align-items: center;
+}
+
+.time-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+}
+
+.time-value {
+    font-size: 0.95rem;
+    color: #212529;
+    line-height: 1.2;
+}
+
+.time-divider {
+    padding: 0 6px;
+    font-weight: 300;
+}
+
+.time-status {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+}
+
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+}
+
+/* Responsive time cell */
+@media (max-width: 992px) {
+    .time-item {
+        min-width: 45px;
+    }
+
+    .time-value {
+        font-size: 0.9rem;
+    }
+
+    .time-divider {
+        padding: 0 4px;
+        font-size: 0.85rem;
+    }
+
+    .time-status {
+        margin-left: 4px;
+    }
 }
 </style>

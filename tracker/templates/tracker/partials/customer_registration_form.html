@@ -1,4 +1,4 @@
-{%load static%}
+{% load static %}
 <form id="customerRegistrationForm" method="post" novalidate>
   {% csrf_token %}
   <input type="hidden" name="step" id="currentStep" value="{{ step }}">
@@ -7,6 +7,7 @@
 
   <div class="wizard-step">
     {% if step == 1 %}
+      <!-- Step 1: Customer Information -->
       <div class="row g-3">
         <div class="col-md-6">
           <label class="form-label">Full name</label>
@@ -65,6 +66,7 @@
       </div>
 
     {% elif step == 2 %}
+      <!-- Step 2: Intent Selection -->
       <div class="row">
         <div class="col-12 mb-3">
           <h6 class="mb-2">What brings the customer today?</h6>
@@ -104,12 +106,12 @@
       </div>
 
     {% elif step == 3 %}
-      {# Intent-specific detailed form: service, sales, or inquiry #}
+      <!-- Step 3: Intent-Specific Details -->
       <input type="hidden" name="service_type" id="id_service_type" value="{% if intent == 'sales' %}tire_sales{% elif intent == 'service' %}car_service{% else %}{{ step3.service_type }}{% endif %}">
 
       {% if intent == 'service' %}
         <div class="row g-3">
-          <!-- Vehicle Information (optional) -->
+          <!-- Vehicle Information -->
           <div class="col-12">
             <div class="card">
               <div class="card-header"><h6 class="mb-0">Vehicle Information </h6></div>
@@ -182,7 +184,7 @@
           </div>
           <div class="col-md-4">
             <label class="form-label">Estimated duration (mins)</label>
-            <input name="estimated_duration" class="form-control" value="50">
+            <input name="estimated_duration" id="estimated_duration" class="form-control" value="0" readonly>
           </div>
         </div>
         <div class="d-flex gap-2 mt-4">
@@ -240,34 +242,23 @@
             </div>
           </div>
 
-          <!-- Description -->
-          <div class="col-12">
+          <!-- Description and Duration -->
+          <div class="col-md-8">
             <label class="form-label">Description (optional)</label>
             <textarea name="description" class="form-control" rows="3" placeholder="Additional details about the purchase..."></textarea>
           </div>
+          <div class="col-md-4">
+            <label class="form-label">Estimated duration (mins)</label>
+            <input name="estimated_duration" id="estimated_duration_sales" class="form-control" value="0" readonly>
+          </div>
         </div>
-        <script>
-          (function(){
-            // Auto-fill item details when item is selected
-            try {
-              var itemEl = document.getElementById('id_item_name');
-              var brandEl = document.getElementById('id_brand');
-              if (!itemEl) return;
-              var itemsData = {};
-              try { itemsData = JSON.parse(itemEl.getAttribute('data-items') || '{}'); } catch(e) { itemsData = {}; }
-              itemEl.addEventListener('change', function(){
-                var itemData = itemsData[this.value];
-                if (itemData && brandEl) { brandEl.value = itemData.brand || ''; }
-              });
-            } catch(e) { /* noop */ }
-          })();
-        </script>
         <div class="d-flex gap-2 mt-4">
           <button type="button" class="btn btn-light" id="backFromStep3">Back</button>
           <button type="button" class="btn btn-primary ms-auto" id="nextServiceBtn">Next</button>
         </div>
 
       {% else %}
+        <!-- Inquiry Form -->
         <div class="row">
           <input type="hidden" name="type" value="inquiry">
           <div class="col-md-4">
@@ -310,144 +301,45 @@
       {% endif %}
 
     {% else %}
-      {# Step 4: Summary and Order creation #}
+      <!-- Step 4: Review and Submit -->
       <div class="row">
         <div class="col-md-6">
           <div class="card mb-3">
             <div class="card-header bg-light">
-              <h6 class="mb-0">Customer summary</h6>
+              <h6 class="mb-0">Customer Information</h6>
             </div>
             <div class="card-body">
               <p><strong>Name:</strong> {{ step1.full_name }}</p>
               <p><strong>Phone:</strong> {{ step1.phone }}</p>
-              <p><strong>Email:</strong> {{ step1.email }}</p>
+              <p><strong>Email:</strong> {{ step1.email|default:"-" }}</p>
               <p><strong>Type:</strong> {{ step1.customer_type }}</p>
-              <p><strong>Notes:</strong> {{ step1.notes }}</p>
+              <p><strong>Notes:</strong> {{ step1.notes|default:"-" }}</p>
             </div>
           </div>
 
-          {# Intent-specific summary from Step 3 #}
-          {% if intent == 'sales' %}
+          {% if intent == 'service' %}
+            <!-- Service Vehicle Details -->
             <div class="card mb-3">
-              <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Purchase Summary</h6>
-                <span class="badge bg-warning text-dark">Sales</span>
-              </div>
-              <div class="card-body">
-                <p class="mb-1"><strong>Item:</strong> <span id="summaryItemName">{{ step3.item_name|default:"-" }}</span></p>
-                <p class="mb-1"><strong>Brand:</strong> <span id="summaryBrandName">{{ step3.brand|default:"-" }}</span></p>
-                <p class="mb-1"><strong>Quantity:</strong> {{ step3.quantity|default:"-" }}</p>
-                <p class="mb-1"><strong>Tire type:</strong> {{ step3.tire_type|default:"-" }}</p>
-                {% if step3.tire_services %}
-                  <p class="mb-0"><strong>Add-ons:</strong> {{ step3.tire_services|join:", " }}</p>
-                {% endif %}
-              </div>
-            </div>
-
-          {% elif intent == 'service' %}
-            <div class="card mb-3">
-              <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Service Summary</h6>
-                <span class="badge bg-success">Service</span>
-              </div>
-              <div class="card-body">
-                {% if step3.service_selection %}
-                  <div class="mb-3">
-                    <strong>Services:</strong>
-                    <ul class="mb-0">
-                      {% for s in step3.service_selection %}
-                        <li>{{ s }}</li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                {% else %}
-                  <p class="mb-3 text-muted">No services selected.</p>
-                {% endif %}
-
-                {% comment %} Show vehicle details if any were entered {% endcomment %}
-                <script>
-                  // Get vehicle details from step 3 form fields
-                  document.addEventListener('DOMContentLoaded', function() {
-                    var plateEl = document.getElementById('id_plate_number');
-                    var makeEl = document.getElementById('id_make');
-                    var modelEl = document.getElementById('id_model');
-                    var typeEl = document.getElementById('id_vehicle_type');
-                    var plate = plateEl ? plateEl.value : '';
-                    var make = makeEl ? makeEl.value : '';
-                    var model = modelEl ? modelEl.value : '';
-                    var vtype = typeEl ? typeEl.value : '';
-                    if (plate || make || model || vtype) {
-                      var vehicleInfo = document.createElement('div');
-                      vehicleInfo.innerHTML = '<strong>Vehicle:</strong><br>' + (plate ? 'Plate: ' + plate + '<br>' : '') + (make || model ? 'Make/Model: ' + (make + ' ' + model).trim() + '<br>' : '') + (vtype ? 'Type: ' + vtype : '');
-                      var serviceBody = document.querySelector('.card-body');
-                      if (serviceBody) {
-                        serviceBody.appendChild(vehicleInfo);
-                      }
-                    }
-                  });
-                </script>
-              </div>
-            </div>
-
-            {# Vehicle details card for service orders #}
-            <div class="card mb-3" id="vehicleServiceSummary">
               <div class="card-header bg-light">
                 <h6 class="mb-0">Vehicle Details</h6>
               </div>
-              <div class="card-body" id="vehicleDetailsContent">
-                {% if step3.plate_number or step3.make or step3.model or step3.vehicle_type %}
-                  {% if step3.plate_number %}<p class="mb-1"><strong>Plate Number:</strong> {{ step3.plate_number }}</p>{% endif %}
-                  {% if step3.make or step3.model %}<p class="mb-1"><strong>Make/Model:</strong> {{ step3.make }} {{ step3.model }}</p>{% endif %}
-                  {% if step3.vehicle_type %}<p class="mb-1"><strong>Type:</strong> {{ step3.vehicle_type }}</p>{% endif %}
-                {% else %}
-                  <div class="text-muted">No vehicle information provided</div>
-                {% endif %}
-              </div>
-            </div>
-
-          {% elif intent == 'inquiry' %}
-            <div class="card mb-3">
-              <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Inquiry Summary</h6>
-                <span class="badge bg-info text-dark">Inquiry</span>
-              </div>
               <div class="card-body">
-                <p class="mb-0 text-muted">Proceed to create a inquiry order.</p>
-              </div>
-            </div>
-          {% endif %}
-
-          {# Show vehicle card only for Inquiry; Service vehicle fields are inside the order section #}
-          {% if intent == 'inquiry' %}
-            <div class="card mb-3" id="vehicleCardStep4">
-              <div class="card-header bg-light">
-                <h6 class="mb-0">Vehicle (if applicable)</h6>
-              </div>
-              <div class="card-body">
-                <div class="row g-3">
+                <div class="row g-2">
                   <div class="col-md-6">
-                    <label class="form-label">Plate number</label>
-                    <input name="plate_number" id="id_plate_number" class="form-control" placeholder="e.g., T123ABC">
+                    <small class="text-muted d-block">Plate Number</small>
+                    <div class="fw-medium">{{ step3.plate_number|default:"-" }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label">Make</label>
-                    <input name="make" id="id_make" class="form-control" placeholder="e.g., Toyota">
+                    <small class="text-muted d-block">Vehicle Type</small>
+                    <div class="fw-medium">{{ step3.vehicle_type|default:"-"|title }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label">Model</label>
-                    <input name="model" id="id_model" class="form-control" placeholder="e.g., Corolla">
+                    <small class="text-muted d-block">Make</small>
+                    <div class="fw-medium">{{ step3.make|default:"-" }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label">Vehicle type</label>
-                    <select name="vehicle_type" id="id_vehicle_type" class="form-select">
-                      <option value="">Select type</option>
-                      <option value="sedan">Sedan</option>
-                      <option value="suv">SUV</option>
-                      <option value="truck">Truck</option>
-                      <option value="motorcycle">Motorcycle</option>
-                      <option value="bus">Bus</option>
-                      <option value="van">Van</option>
-                    </select>
+                    <small class="text-muted d-block">Model</small>
+                    <div class="fw-medium">{{ step3.model|default:"-" }}</div>
                   </div>
                 </div>
               </div>
@@ -456,102 +348,156 @@
         </div>
 
         <div class="col-md-6">
+          <!-- Order Summary -->
           <div class="card mb-3">
-            <div class="card-header bg-light">
-              <h6 class="mb-0">{% if intent == 'inquiry' %}Order Details{% else %}Order Summary{% endif %}</h6>
+            <div class="card-header bg-light d-flex align-items-center">
+              {% if intent == 'service' %}
+                <i class="fa fa-wrench me-2 text-primary"></i>
+                <h6 class="mb-0">Service Order</h6>
+                <span class="badge bg-primary rounded-pill ms-2">SERVICE</span>
+              {% elif intent == 'sales' %}
+                <i class="fa fa-shopping-cart me-2 text-success"></i>
+                <h6 class="mb-0">Sales Order</h6>
+                <span class="badge bg-success rounded-pill ms-2">SALES</span>
+              {% else %}
+                <i class="fa fa-question-circle me-2 text-info"></i>
+                <h6 class="mb-0">Inquiry</h6>
+                <span class="badge bg-info text-dark rounded-pill ms-2">INQUIRY</span>
+              {% endif %}
             </div>
             <div class="card-body">
-              {% with t=order_form.initial.type %}
-                {% if intent == 'inquiry' %}
-                  <div class="mb-3">
-                    <label class="form-label d-block">Order type</label>
-                    <span class="badge bg-info text-dark">Inquiries</span>
-                    <input type="hidden" name="type" value="inquiry">
-                  </div>
-                  <ul class="list-unstyled mb-0">
-                    <li class="mb-1"><strong>Priority:</strong> {{ step3.priority|default:"-" }}</li>
-                    <li class="mb-1"><strong>Vehicle:</strong> {{ step3.vehicle|default:"-" }}</li>
-                    <li class="mb-1"><strong>Inquiry type:</strong> {{ step3.inquiry_type|default:"-" }}</li>
-                    <li class="mb-1"><strong>Contact preference:</strong> {{ step3.contact_preference|default:"-" }}</li>
-                    <li class="mb-1"><strong>Questions:</strong> {{ step3.questions|default:"-" }}</li>
-                  </ul>
-                  {# Hidden inputs to submit values #}
-                  <input type="hidden" name="priority" value="{{ step3.priority }}">
-                  <input type="hidden" name="vehicle" value="{{ step3.vehicle }}">
-                  <input type="hidden" name="inquiry_type" value="{{ step3.inquiry_type }}">
-                  <input type="hidden" name="contact_preference" value="{{ step3.contact_preference }}">
-                  <input type="hidden" name="questions" value="{{ step3.questions }}">
-                {% else %}
-                  <div class="mb-3">
-                    <label class="form-label d-block">Order type</label>
-                    {% if t == 'sales' %}<span class="badge bg-warning text-dark">Sales</span>{% endif %}
-                    {% if t == 'service' %}<span class="badge bg-success">Service</span>{% endif %}
-                    {% if t == 'inquiry' %}<span class="badge bg-info text-dark">inquiry</span>{% endif %}
-                    <input type="hidden" name="type" value="{{ t }}">
-                  </div>
-                  {# Read-only summary reflecting data selected in Step 3 #}
-                  {% if intent == 'sales' %}
-                    <ul class="list-unstyled mb-0">
-                      <li class="mb-1"><strong>Item:</strong> {{ step3.item_name|default:"-" }}</li>
-                      <li class="mb-1"><strong>Brand:</strong> {{ step3.brand|default:"-" }}</li>
-                      <li class="mb-1"><strong>Quantity:</strong> {{ step3.quantity|default:"-" }}</li>
-                      <li class="mb-1"><strong>Tire type:</strong> {{ step3.tire_type|default:"-" }}</li>
-                      {% if step3.tire_services %}
-                        <li class="mb-0"><strong>Add-ons:</strong> {{ step3.tire_services|join:", " }}</li>
-                      {% endif %}
-                    </ul>
-                    {# Hidden inputs to submit values #}
-                    <input type="hidden" name="item_name" value="{{ step3.item_name }}">
-                    <input type="hidden" name="brand" value="{{ step3.brand }}">
-                    <input type="hidden" name="quantity" value="{{ step3.quantity }}">
-                    <input type="hidden" name="tire_type" value="{{ step3.tire_type }}">
-                    {% if step3.tire_services %}
-                      {% for ts in step3.tire_services %}
-                        <input type="hidden" name="tire_services" value="{{ ts }}">
+              {% if intent == 'service' %}
+                <div class="row g-3">
+                  {% if step3.service_selection %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium mb-2">Selected Services</small>
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for service in step3.service_selection %}
+                        <span class="badge bg-success">{{ service }}</span>
                       {% endfor %}
-                    {% endif %}
-                  {% elif intent == 'service' %}
-                    {% if step3.service_selection %}
-                      <div class="mb-2">
-                        <strong>Services:</strong>
-                        <ul class="mb-0">
-                          {% for s in step3.service_selection %}
-                            <li>{{ s }}</li>
-                          {% endfor %}
-                        </ul>
-                      </div>
-                    {% else %}
-                      <p class="mb-2 text-muted">No services selected.</p>
-                    {% endif %}
-                    <div class="mb-2">
-                      <strong>Vehicle Details:</strong>
-                      <div id="vehicleOrderSummary" class="small text-muted">
-                        <div>Plate: <span id="summaryPlate">{{ step3.plate_number|default:"-" }}</span></div>
-                        <div>Make/Model: <span id="summaryMakeModel">{% if step3.make or step3.model %}{{ step3.make }} {{ step3.model }}{% else %}-{% endif %}</span></div>
-                        <div>Type: <span id="summaryType">{{ step3.vehicle_type|default:"-" }}</span></div>
-                      </div>
                     </div>
-                    {# Hidden inputs to submit values #}
-                    {% if step3.service_selection %}
-                      {% for s in step3.service_selection %}
-                        <input type="hidden" name="service_selection" value="{{ s }}">
-                      {% endfor %}
-                    {% endif %}
-                    <input type="hidden" name="plate_number" value="{{ step3.plate_number }}">
-                    <input type="hidden" name="make" value="{{ step3.make }}">
-                    <input type="hidden" name="model" value="{{ step3.model }}">
-                    <input type="hidden" name="vehicle_type" value="{{ step3.vehicle_type }}">
-                    <input type="hidden" name="description" value="{{ step3.description }}">
-                    <input type="hidden" name="estimated_duration" value="{{ step3.estimated_duration }}">
+                  </div>
+                  {% else %}
+                  <div class="col-12">
+                    <div class="alert alert-warning py-2 mb-0"><i class="fa fa-exclamation-triangle me-2"></i>No services selected</div>
+                  </div>
                   {% endif %}
-                  <hr>
-                  <p class="mb-0 text-muted">Review the summary on the left. No additional selections are required.</p>
-                {% endif %}
-              {% endwith %}
+                  {% if step3.estimated_duration %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Estimated Time</small>
+                    <div class="p-2 rounded border-start border-4 border-success bg-light">
+                      <strong>{{ step3.estimated_duration }} mins</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+
+              {% elif intent == 'sales' %}
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Item</small>
+                    <div class="fw-medium">{{ step3.item_name|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Brand</small>
+                    <div class="fw-medium">{{ step3.brand|default:"-" }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Quantity</small>
+                    <div class="fw-medium">{{ step3.quantity|default:"-" }}</div>
+                  </div>
+                  {% if step3.tire_type %}
+                  <div class="col-md-6">
+                    <small class="text-muted d-block fw-medium">Tire Type</small>
+                    <div class="fw-medium">{{ step3.tire_type }}</div>
+                  </div>
+                  {% endif %}
+                  {% if step3.tire_services %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Service Add-ons</small>
+                    <div class="d-flex flex-wrap gap-2">
+                      {% for addon in step3.tire_services %}
+                        <span class="badge bg-warning text-dark">{{ addon }}</span>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endif %}
+                  {% if step3.estimated_duration %}
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Estimated Time</small>
+                    <div class="p-2 rounded border-start border-4 border-warning bg-light">
+                      <strong>{{ step3.estimated_duration }} mins</strong>
+                    </div>
+                  </div>
+                  {% endif %}
+                </div>
+
+              {% else %}
+                <div class="row g-3">
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Inquiry Type</small>
+                    <div class="fw-medium">{{ step3.inquiry_type|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Contact Preference</small>
+                    <div class="fw-medium">{{ step3.contact_preference|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Priority</small>
+                    <div class="fw-medium">{{ step3.priority|default:"-" }}</div>
+                  </div>
+                  <div class="col-12">
+                    <small class="text-muted d-block fw-medium">Questions & Details</small>
+                    <div class="alert alert-light py-2 mb-0 text-break">{{ step3.questions|default:"-" }}</div>
+                  </div>
+                </div>
+              {% endif %}
             </div>
+          </div>
+
+          <div class="alert alert-info py-2 mb-0">
+            <i class="fa fa-info-circle me-2"></i>
+            <small>Review the information above. Click <strong>Create Customer & Order</strong> to proceed.</small>
           </div>
         </div>
       </div>
+
+      <!-- Hidden fields for form submission -->
+      {% if intent == 'service' %}
+        <input type="hidden" name="type" value="service">
+        {% if step3.service_selection %}
+          {% for s in step3.service_selection %}
+            <input type="hidden" name="service_selection" value="{{ s }}">
+          {% endfor %}
+        {% endif %}
+        <input type="hidden" name="plate_number" value="{{ step3.plate_number }}">
+        <input type="hidden" name="make" value="{{ step3.make }}">
+        <input type="hidden" name="model" value="{{ step3.model }}">
+        <input type="hidden" name="vehicle_type" value="{{ step3.vehicle_type }}">
+        <input type="hidden" name="description" value="{{ step3.description }}">
+        <input type="hidden" name="estimated_duration" value="{{ step3.estimated_duration }}">
+
+      {% elif intent == 'sales' %}
+        <input type="hidden" name="type" value="sales">
+        <input type="hidden" name="item_name" value="{{ step3.item_name }}">
+        <input type="hidden" name="brand" value="{{ step3.brand }}">
+        <input type="hidden" name="quantity" value="{{ step3.quantity }}">
+        <input type="hidden" name="tire_type" value="{{ step3.tire_type }}">
+        <input type="hidden" name="description" value="{{ step3.description }}">
+        <input type="hidden" name="estimated_duration" value="{{ step3.estimated_duration }}">
+        {% if step3.tire_services %}
+          {% for ts in step3.tire_services %}
+            <input type="hidden" name="tire_services" value="{{ ts }}">
+          {% endfor %}
+        {% endif %}
+
+      {% else %}
+        <input type="hidden" name="type" value="inquiry">
+        <input type="hidden" name="priority" value="{{ step3.priority }}">
+        <input type="hidden" name="inquiry_type" value="{{ step3.inquiry_type }}">
+        <input type="hidden" name="contact_preference" value="{{ step3.contact_preference }}">
+        <input type="hidden" name="questions" value="{{ step3.questions }}">
+      {% endif %}
 
       <div class="d-flex gap-2 mt-3">
         <button type="button" class="btn btn-light" id="backFromStep4">Back</button>
@@ -562,9 +508,8 @@
 </form>
 
 <script>
-// Inline small helpers to maintain progressive enhancement when JS file not loaded
 document.addEventListener('DOMContentLoaded', function(){
-  // Toggle conditional Customer fields in Step 1
+  // Customer type field toggling
   var customerType = document.getElementById('id_customer_type');
   function toggleCustomerFields(){
     if(!customerType) return;
@@ -573,12 +518,10 @@ document.addEventListener('DOMContentLoaded', function(){
     var org = document.getElementById('organization-field');
     var tax = document.getElementById('tax-field');
     
-    // Hide all fields first
     if(ps) ps.style.display = 'none';
     if(org) org.style.display = 'none';
     if(tax) tax.style.display = 'none';
     
-    // Show relevant fields based on selection
     if(val === 'personal' && ps) {
       ps.style.display = 'block';
     } else if(['company','government','ngo'].indexOf(val) !== -1) {
@@ -592,44 +535,25 @@ document.addEventListener('DOMContentLoaded', function(){
     toggleCustomerFields();
   }
 
-  // Wire quick save button if present
+  // Save customer button
   var saveBtn = document.getElementById('saveCustomerBtn');
   if(saveBtn){
     saveBtn.addEventListener('click', function(e){
       e.preventDefault();
-      // Always use AJAX handler when available
       var saveOnly = document.getElementById('saveOnly');
       if(saveOnly) saveOnly.value = '1';
       var form = document.getElementById('customerRegistrationForm');
-      // Submit normally to allow server-side redirect when JS not available
-      if(window.__CUSTOMER_REG_AJAX){
-        // Use AJAX submission
-        if(typeof ajaxPostForm !== 'undefined'){
-          ajaxPostForm(form, function(data){
-            if(data.redirect_url){ 
-              window.location.href = data.redirect_url; 
-            } else if(data.success && data.message){ 
-              alert(data.message); 
-            }
-          }, function(err){ 
-            alert('Error saving customer: ' + err); 
-          });
-        }
-      } else {
-        // Fallback to normal form submission
-        form.submit();
-      }
+      form.submit();
     });
   }
 
-  // Step 2: Intent selection helper (service/sales/inquiry)
+  // Intent selection
   window.selectIntent = function(val){
     try {
       var intentInput = document.getElementById('registrationIntent');
       if (intentInput) intentInput.value = val;
       var radios = document.querySelectorAll('input[name="intent"]');
       radios.forEach(function(r){ r.checked = (r.value === val); });
-      // Visual selection for cards
       document.querySelectorAll('.intent-card').forEach(function(card){
         card.classList.remove('border-primary');
       });
@@ -640,36 +564,37 @@ document.addEventListener('DOMContentLoaded', function(){
     } catch(e) { /* noop */ }
   };
 
-  // Step 3: Toggle service offer checkboxes (inputs are hidden) and update ETA
-  try {
-    // Update service ETA for service selections
-    function updateCrServiceEta(){
-      var total = 0;
-      document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
-        var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-        if(!isNaN(m)) total += m;
-      });
-      var etaInput = document.querySelector('input[name="estimated_duration"]');
-      var hint = document.getElementById('cr_total_eta_hint');
-      if(etaInput){
-        if(total > 0){ etaInput.value = String(total); }
-        if(hint){
-          if(total > 0){ hint.style.display=''; hint.textContent = 'Estimated total time: ' + total + ' mins'; }
-          else { hint.style.display='none'; hint.textContent=''; }
+  // Auto-fill item details for sales
+  var itemEl = document.getElementById('id_item_name');
+  if(itemEl){
+    try {
+      var itemsData = JSON.parse(itemEl.getAttribute('data-items') || '{}');
+      var brandEl = document.getElementById('id_brand');
+      
+      itemEl.addEventListener('change', function(){
+        var itemData = itemsData[this.value];
+        if(itemData && brandEl){
+          brandEl.value = itemData.brand || '';
         }
-      }
-      // Also update the combined total if we're in sales section
-      updateCrCombinedEta();
-    }
-    
-    // Update tire services ETA for sales add-ons
-    function updateCrTireServicesEta(){
-      var total = 0;
-      document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
-        var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-        if(!isNaN(m)) total += m;
       });
-      var hint = document.getElementById('cr_tire_services_total_eta_hint');
+    } catch(e) { /* noop */ }
+  }
+});
+</script>
+
+<script>
+(function(){
+  // Update service ETA for service selections - EXACT copy from working implementation
+  function updateServiceEta(){
+    var total = 0;
+    document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) total += m;
+    });
+    var etaInput = document.getElementById('estimated_duration');
+    var hint = document.getElementById('cr_total_eta_hint');
+    if(etaInput){
+      if(total > 0){ etaInput.value = String(total); }
       if(hint){
         if(total > 0){
           hint.style.display = '';
@@ -679,148 +604,120 @@ document.addEventListener('DOMContentLoaded', function(){
           hint.textContent = '';
         }
       }
-      // Also update the combined total if we're in sales section
-      updateCrCombinedEta();
     }
-    
-    // Update combined ETA for both service and tire services
-    function updateCrCombinedEta(){
-      var serviceTotal = 0;
-      var tireServiceTotal = 0;
-      
-      // Calculate service total
-      document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
-        var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-        if(!isNaN(m)) serviceTotal += m;
-      });
-      
-      // Calculate tire services total
-      document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
-        var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-        if(!isNaN(m)) tireServiceTotal += m;
-      });
-      
-      var combinedTotal = serviceTotal + tireServiceTotal;
-      var etaInput = document.querySelector('input[name="estimated_duration"]');
-      
-      if(etaInput){
-        if(combinedTotal > 0){ 
-          etaInput.value = String(combinedTotal); 
-        }
+  }
+  
+  // Update tire services ETA for sales add-ons - EXACT copy from working implementation
+  function updateTireServicesEta(){
+    var total = 0;
+    document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
+      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+      if(!isNaN(m)) total += m;
+    });
+    var etaInput = document.getElementById('estimated_duration_sales');
+    var hint = document.getElementById('cr_tire_services_total_eta_hint');
+    if(hint){
+      if(total > 0){
+        hint.style.display = '';
+        hint.textContent = 'Estimated total time: ' + total + ' mins';
+      } else {
+        hint.style.display = 'none';
+        hint.textContent = '';
       }
     }
+  }
+  
+  document.addEventListener('DOMContentLoaded', function(){
+    // Service selection checkboxes - EXACT copy from working implementation
+    document.querySelectorAll('input[type="checkbox"][name="service_selection"]').forEach(function(cb){
+      cb.addEventListener('change', updateServiceEta);
+    });
     
-    // Service offer card click handlers
+    // Tire service checkboxes - EXACT copy from working implementation
+    document.querySelectorAll('input[type="checkbox"][name="tire_services"]').forEach(function(cb){
+      cb.addEventListener('change', updateTireServicesEta);
+    });
+    
+    // Service offer card click handlers for hidden checkboxes
     document.querySelectorAll('.service-offer').forEach(function(lbl){
       lbl.addEventListener('click', function(e){
-        var cb = lbl.querySelector('input[type="checkbox"][name="service_selection"]');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Find the associated checkbox
+        var checkboxId = lbl.getAttribute('for');
+        var cb = document.getElementById(checkboxId);
+        
         if (!cb) return;
+        
+        // Toggle checkbox state
         cb.checked = !cb.checked;
+        
+        // Update visual styling
         lbl.classList.toggle('border-primary', cb.checked);
         lbl.classList.toggle('bg-light', cb.checked);
-        updateCrServiceEta();
+        
+        // Trigger the change event on the checkbox to update ETA
+        var event = new Event('change', { bubbles: true });
+        cb.dispatchEvent(event);
       });
     });
     
-    // Tire service checkbox change handlers
-    document.querySelectorAll('input[type="checkbox"][name="tire_services"]').forEach(function(cb){
-      cb.addEventListener('change', updateCrTireServicesEta);
+    // Also handle form-check-label clicks for tire services
+    document.querySelectorAll('.form-check-label').forEach(function(lbl){
+      lbl.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Find the associated checkbox
+        var checkboxId = lbl.getAttribute('for');
+        var cb = document.getElementById(checkboxId);
+        
+        if (!cb) return;
+        
+        // Toggle checkbox state
+        cb.checked = !cb.checked;
+        
+        // Trigger the change event on the checkbox to update ETA
+        var event = new Event('change', { bubbles: true });
+        cb.dispatchEvent(event);
+      });
     });
     
-    // Initialize ETAs
-    updateCrServiceEta();
-    updateCrTireServicesEta();
-  } catch(e) { /* noop */ }
-
-  // Update item/brand summary in step 4
-  function updateItemSummary() {
-    try {
-      var itemEl = document.getElementById('id_item_name');
-      var brandEl = document.getElementById('id_brand');
-      if (itemEl && brandEl) {
-        var itemsData = {};
-        try {
-          itemsData = JSON.parse(itemEl.getAttribute('data-items') || '{}');
-        } catch(e) {
-          itemsData = {};
-        }
-        var itemData = itemsData[itemEl.value];
-        var summaryItemName = document.getElementById('summaryItemName');
-        var summaryBrandName = document.getElementById('summaryBrandName');
-        if (summaryItemName) summaryItemName.textContent = itemData ? itemData.name : '-';
-        if (summaryBrandName) summaryBrandName.textContent = itemData ? itemData.brand : '-';
-        // Update hidden brand field
-        if (brandEl && itemData) {
-          brandEl.value = itemData.brand || '';
-        }
-      }
-    } catch (e) { /* noop */ }
-  }
-
-  // Update vehicle summary in step 4 when vehicle fields change
-  function updateVehicleSummary() {
-    try {
-      var plateEl = document.getElementById('id_plate_number');
-      var makeEl = document.getElementById('id_make');
-      var modelEl = document.getElementById('id_model');
-      var typeEl = document.getElementById('id_vehicle_type');
-      var plate = plateEl ? plateEl.value.trim() : '';
-      var make = makeEl ? makeEl.value.trim() : '';
-      var model = modelEl ? modelEl.value.trim() : '';
-      var vtype = typeEl ? typeEl.value : '';
-      // If no form fields, try to get from stored data
-      if (!plate && !make && !model && !vtype) {
-        try {
-          var stored = sessionStorage.getItem('customerRegVehicleData');
-          if (stored) {
-            var vehicleData = JSON.parse(stored);
-            plate = vehicleData.plate_number || '';
-            make = vehicleData.make || '';
-            model = vehicleData.model || '';
-            vtype = vehicleData.vehicle_type || '';
-          }
-        } catch(e) {}
-      }
-      // Update summary elements if they exist
-      var summaryPlate = document.getElementById('summaryPlate');
-      var summaryMakeModel = document.getElementById('summaryMakeModel');
-      var summaryType = document.getElementById('summaryType');
-      if (summaryPlate && summaryPlate.textContent === '-') summaryPlate.textContent = plate || '-';
-      if (summaryMakeModel && summaryMakeModel.textContent === '-') summaryMakeModel.textContent = (make + ' ' + model).trim() || '-';
-      if (summaryType && summaryType.textContent === '-') summaryType.textContent = vtype || '-';
-      // Update vehicle details content if it shows default message
-      var vehicleContent = document.getElementById('vehicleDetailsContent');
-      if (vehicleContent && vehicleContent.textContent.includes('No vehicle information provided')) {
-        if (plate || make || model || vtype) {
-          var html = '';
-          if (plate) html += '<p class="mb-1"><strong>Plate Number:</strong> ' + plate + '</p>';
-          if (make || model) html += '<p class="mb-1"><strong>Make/Model:</strong> ' + (make + ' ' + model).trim() + '</p>';
-          if (vtype) html += '<p class="mb-1"><strong>Type:</strong> ' + vtype + '</p>';
-          if (html) vehicleContent.innerHTML = html;
-        }
-      }
-    } catch (e) { /* noop */ }
-  }
-
-  // Add event listeners to vehicle fields
-  var vehicleFields = ['id_plate_number', 'id_make', 'id_model', 'id_vehicle_type'];
-  for (var i = 0; i < vehicleFields.length; i++) {
-    var id = vehicleFields[i];
-    var el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', updateVehicleSummary);
-      el.addEventListener('change', updateVehicleSummary);
-    }
-  }
-
-  // Add event listener for item selection
-  var itemEl = document.getElementById('id_item_name');
-  if (itemEl) {
-    itemEl.addEventListener('change', updateItemSummary);
-  }
-
-  // Initial updates
-  updateVehicleSummary();
-  updateItemSummary();
-});
+    // Initialize ETAs - EXACT copy from working implementation
+    updateServiceEta();
+    updateTireServicesEta();
+  });
+})();
 </script>
+
+<style>
+.service-offer {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.service-offer:hover {
+  border-color: #0d6efd !important;
+  transform: translateY(-1px);
+}
+.service-offer.border-primary {
+  border-color: #0d6efd !important;
+  background-color: #f8f9fa !important;
+}
+.intent-card {
+  transition: all 0.2s ease;
+}
+.intent-card:hover {
+  border-color: #0d6efd;
+  transform: translateY(-2px);
+}
+.border-primary {
+  border-color: #0d6efd !important;
+}
+.bg-light {
+  background-color: #f8f9fa !important;
+}
+.cursor-pointer {
+  cursor: pointer;
+}
+</style>

@@ -3093,10 +3093,8 @@ def complete_order(request: HttpRequest, pk: int):
 
     o.status = 'completed'
     o.completed_at = now
-    if o.started_at:
-        o.actual_duration = int((now - o.started_at).total_seconds() // 60)
-    else:
-        o.actual_duration = int((now - o.created_at).total_seconds() // 60)
+    reference_time = o.started_at or o.created_at
+    o.actual_duration = int(max(0, (now - reference_time).total_seconds() // 60))
 
     if o.type == 'sales' and (o.quantity or 0) > 0 and o.item_name and o.brand:
         from .utils import adjust_inventory
@@ -3265,7 +3263,7 @@ def sign_order_document(request: HttpRequest, pk: int):
         from .utils import adjust_inventory
         adjust_inventory(order.item_name, order.brand, (order.quantity or 0))
 
-    order.save()
+    order.save(update_fields=['status', 'completed_at', 'completion_date', 'actual_duration', 'signed_by', 'signed_at'])
 
     try:
         add_audit_log(request.user, 'order_completed', f"Order {order.order_number} signed and archived as PDF")
@@ -3380,11 +3378,11 @@ def sign_existing_document(request: HttpRequest, pk: int):
     order.status = 'completed'
     order.completed_at = now
     order.completion_date = now
-    ref_time = order.started_at or order.created_at
-    order.actual_duration = int(max(0, (now - ref_time).total_seconds() // 60))
+    reference_time = order.started_at or order.created_at
+    order.actual_duration = int(max(0, (now - reference_time).total_seconds() // 60))
     order.signed_by = request.user
     order.signed_at = now
-    order.save()
+    order.save(update_fields=['status', 'started_at', 'completed_at', 'completion_date', 'actual_duration', 'signed_by', 'signed_at'])
 
     messages.success(request, 'Signed copy created and attached to the order.')
     return redirect('tracker:order_detail', pk=order.id)

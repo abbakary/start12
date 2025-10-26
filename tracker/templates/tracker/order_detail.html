@@ -416,7 +416,7 @@
               <small class="text-muted d-block">Type</small>
               <div>
                 <span class="badge bg-secondary">{{ order.customer.get_customer_type_display|default:"Personal" }}</span>
-                {% if order.customer.personal_subtype %}<small class="text-muted ms-2">• {{ order.customer.get_personal_subtype_display }}</small>{% endif %}
+                {% if order.customer.personal_subtype %}<small class="text-muted ms-2">�� {{ order.customer.get_personal_subtype_display }}</small>{% endif %}
               </div>
             </div>
             <div class="col-md-6">
@@ -439,43 +439,42 @@
         </div>
       </div>
 
-      <!-- Order Details -->
-      <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light">
-          <h6 class="mb-0"><i class="fa fa-info-circle me-2"></i>Order Details</h6>
+      <!-- Order Details - Separated by Type -->
+      {% if order.type == 'service' %}
+      <div class="card shadow-sm mb-4 order-details-service">
+        <div class="card-header bg-light d-flex align-items-center">
+          <i class="fa fa-wrench me-2 text-primary"></i>
+          <h6 class="mb-0">Service Order Details</h6>
+          <span class="badge bg-primary rounded-pill ms-2">SERVICE</span>
         </div>
         <div class="card-body">
           <div class="row g-4">
             <div class="col-12">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Description</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-clipboard me-2"></i>Description</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.description|default:"No description provided" }}</div>
               </div>
             </div>
-
-            {# Vehicle details - show for any order that has a vehicle attached #}
             {% if order.vehicle %}
-            <div class="col-md-6">
+            <div class="col-12">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Vehicle</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-car me-2"></i>Vehicle Information</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">
                   <div class="row">
-                    <div class="col-6">
-                      <small class="text-muted">Plate</small>
+                    <div class="col-md-3">
+                      <small class="text-muted d-block">Plate Number</small>
                       <div class="fw-medium">{{ order.vehicle.plate_number|default:'-' }}</div>
                     </div>
-                    <div class="col-6">
-                      <small class="text-muted">Type</small>
+                    <div class="col-md-3">
+                      <small class="text-muted d-block">Type</small>
                       <div class="fw-medium">{{ order.vehicle.vehicle_type|default:'-' }}</div>
                     </div>
-                  </div>
-                  <div class="row mt-2">
-                    <div class="col-6">
-                      <small class="text-muted">Make</small>
+                    <div class="col-md-3">
+                      <small class="text-muted d-block">Make</small>
                       <div class="fw-medium">{{ order.vehicle.make|default:'-' }}</div>
                     </div>
-                    <div class="col-6">
-                      <small class="text-muted">Model</small>
+                    <div class="col-md-3">
+                      <small class="text-muted d-block">Model</small>
                       <div class="fw-medium">{{ order.vehicle.model|default:'-' }}</div>
                     </div>
                   </div>
@@ -483,71 +482,104 @@
               </div>
             </div>
             {% endif %}
-
-            {# Inquiry specific fields #}
-            {% if order.type == 'inquiry' %}
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Inquiry Type</label>
-                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.inquiry_type|default:"-" }}</div>
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Questions / Details</label>
-                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.questions|default:"No further details provided" }}</div>
-              </div>
-            </div>
-            {% endif %}
-
-            {# Sales specific fields #}
-            {% if order.type == 'sales' %}
+          </div>
+        </div>
+      </div>
+      {% elif order.type == 'sales' %}
+      <div class="card shadow-sm mb-4 order-details-sales">
+        <div class="card-header bg-light d-flex align-items-center">
+          <i class="fa fa-shopping-cart me-2 text-success"></i>
+          <h6 class="mb-0">Sales Order Details</h6>
+          <span class="badge bg-success rounded-pill ms-2">SALES</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
             <div class="col-md-4">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Item</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-tag me-2"></i>Item</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.item_name|default:"-" }}</div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Brand</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-building me-2"></i>Brand</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.brand|default:"-" }}</div>
               </div>
             </div>
             <div class="col-md-4">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Quantity</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-cubes me-2"></i>Quantity</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.quantity|default:"-" }}</div>
               </div>
             </div>
             {% if order.tire_type %}
             <div class="col-12">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Tire Type</label>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-cog me-2"></i>Tire Type</label>
                 <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.tire_type }}</div>
               </div>
             </div>
             {% endif %}
-            {% endif %}
-            {% if order.notes %}
+            {% if order.description %}
             <div class="col-12">
               <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Notes</label>
-                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.notes }}</div>
-              </div>
-            </div>
-            {% endif %}
-            {% if order.cancellation_reason %}
-            <div class="col-12">
-              <div class="mb-3">
-                <label class="form-label fw-medium text-muted">Cancellation Reason</label>
-                <div class="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded">{{ order.cancellation_reason }}</div>
+                <label class="form-label fw-medium text-muted"><i class="fa fa-clipboard me-2"></i>Description</label>
+                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.description }}</div>
               </div>
             </div>
             {% endif %}
           </div>
         </div>
       </div>
+      {% elif order.type == 'inquiry' %}
+      <div class="card shadow-sm mb-4 order-details-inquiry">
+        <div class="card-header bg-light d-flex align-items-center">
+          <i class="fa fa-question-circle me-2 text-info"></i>
+          <h6 class="mb-0">Inquiry Order Details</h6>
+          <span class="badge bg-info rounded-pill ms-2">INQUIRY</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-4">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label fw-medium text-muted"><i class="fa fa-list-alt me-2"></i>Inquiry Type</label>
+                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.inquiry_type|default:"-" }}</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label fw-medium text-muted"><i class="fa fa-comments me-2"></i>Contact Preference</label>
+                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.contact_preference|default:"-" }}</div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="mb-3">
+                <label class="form-label fw-medium text-muted"><i class="fa fa-comment-o me-2"></i>Questions / Details</label>
+                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.questions|default:"No further details provided" }}</div>
+              </div>
+            </div>
+            {% if order.description %}
+            <div class="col-12">
+              <div class="mb-3">
+                <label class="form-label fw-medium text-muted"><i class="fa fa-sticky-note-o me-2"></i>Additional Notes</label>
+                <div class="p-3 border rounded" style="background-color: #f8f9fa;">{{ order.description }}</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% if order.cancellation_reason %}
+      <div class="card shadow-sm mb-4 border border-danger">
+        <div class="card-header bg-danger bg-opacity-10">
+          <h6 class="mb-0"><i class="fa fa-exclamation-circle me-2 text-danger"></i>Cancellation Reason</h6>
+        </div>
+        <div class="card-body">
+          <div class="p-3 bg-danger bg-opacity-10 border border-danger border-opacity-25 rounded">{{ order.cancellation_reason }}</div>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Enhanced Attachments & Signatures Section -->
       <div class="card shadow-sm mb-4 attachments-card">
@@ -1466,7 +1498,136 @@
     border-color: #dee2e6 !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
-  
+
+  /* Order Details Sections by Type */
+  .order-details-service .card-header {
+    border-left: 4px solid #0d6efd;
+    background-color: #f0f6ff !important;
+  }
+
+  .order-details-sales .card-header {
+    border-left: 4px solid #198754;
+    background-color: #f0fdf4 !important;
+  }
+
+  .order-details-inquiry .card-header {
+    border-left: 4px solid #0dcaf0;
+    background-color: #f0f9fc !important;
+  }
+
+  /* Order Section Cards in Customer Registration Step 4 */
+  .order-section-service .card-header {
+    border-left: 4px solid #0d6efd;
+    background-color: #f0f6ff !important;
+  }
+
+  .order-section-sales .card-header {
+    border-left: 4px solid #198754;
+    background-color: #f0fdf4 !important;
+  }
+
+  .order-section-inquiry .card-header {
+    border-left: 4px solid #0dcaf0;
+    background-color: #f0f9fc !important;
+  }
+
+  .order-section-vehicle .card-header {
+    border-left: 4px solid #0dcaf0;
+    background-color: #f0f9fc !important;
+  }
+
+  /* Improved badge styles for order summaries */
+  .order-section-service .badge-sm,
+  .order-details-service .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .order-section-sales .badge-sm,
+  .order-details-sales .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  .order-section-inquiry .badge-sm,
+  .order-details-inquiry .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  /* Card body improvements */
+  .order-details-service .card-body,
+  .order-details-sales .card-body,
+  .order-details-inquiry .card-body,
+  .order-section-service .card-body,
+  .order-section-sales .card-body,
+  .order-section-inquiry .card-body {
+    padding: 1.5rem;
+  }
+
+  /* Separate field styling */
+  .order-details-service [class*="mb-3"],
+  .order-details-sales [class*="mb-3"],
+  .order-details-inquiry [class*="mb-3"] {
+    margin-bottom: 1.25rem;
+  }
+
+  .order-details-service .form-label,
+  .order-details-sales .form-label,
+  .order-details-inquiry .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Field value styling */
+  .order-details-service [style*="background-color"],
+  .order-details-sales [style*="background-color"],
+  .order-details-inquiry [style*="background-color"] {
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    color: #212529;
+    word-break: break-word;
+  }
+
+  /* Alert styling for empty states */
+  .order-section-service .alert,
+  .order-section-sales .alert,
+  .order-section-inquiry .alert {
+    margin-bottom: 0;
+    border: none;
+    border-radius: 6px;
+  }
+
+  /* Grid improvements */
+  .order-details-service .row,
+  .order-details-sales .row,
+  .order-details-inquiry .row {
+    row-gap: 1rem;
+  }
+
+  /* Responsive adjustments for order details */
+  @media (max-width: 768px) {
+    .order-details-service .card-header,
+    .order-details-sales .card-header,
+    .order-details-inquiry .card-header {
+      flex-direction: column;
+      align-items: flex-start !important;
+    }
+
+    .order-details-service .card-header h6,
+    .order-details-sales .card-header h6,
+    .order-details-inquiry .card-header h6 {
+      margin-right: 0;
+    }
+
+    .order-details-service .badge,
+    .order-details-sales .badge,
+    .order-details-inquiry .badge {
+      margin-top: 0.5rem;
+    }
+  }
+
   @media (max-width: 767.98px) {
     .time-tracking-card .time-tracking-stat {
       flex: 1 1 100%;

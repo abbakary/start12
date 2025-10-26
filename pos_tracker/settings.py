@@ -64,21 +64,27 @@ TEMPLATES = [
 WSGI_APPLICATION = "pos_tracker.wsgi.application"
 
 # --- DATABASE CONFIGURATION (MySQL) ---
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'stms',
+#         'USER': 'root',
+#         'PASSWORD': '',  # Set your MySQL password here
+#         'HOST': 'localhost',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine=INNODB",
+#             'charset': 'utf8mb4',
+#             'autocommit': True,
+#         },
+#         'TIME_ZONE': 'Asia/Riyadh',
+#         'CONN_MAX_AGE': 300,  # Optional: keep connections alive longer
+#     }
+# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'stms',
-        'USER': 'root',
-        'PASSWORD': '',  # Set your MySQL password here
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES', default_storage_engine=INNODB",
-            'charset': 'utf8mb4',
-            'autocommit': True,
-        },
-        'TIME_ZONE': 'Asia/Riyadh',
-        'CONN_MAX_AGE': 300,  # Optional: keep connections alive longer
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 

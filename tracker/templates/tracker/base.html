@@ -277,6 +277,21 @@
                                         <h6>Pinned</h6>
                                     </div>
                                 </li>
+
+                                <!-- Quick Start (PRIMARY) -->
+                                <li class="sidebar-list">
+                                    <i class="fa fa-thumb-tack"></i>
+                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#quickStartModal">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-play-circle"></use>
+                                        </svg>
+                                        <span>
+                                            <strong>Quick Start</strong>
+                                            <span class="badge bg-success ms-2">New Order</span>
+                                        </span>
+                                    </a>
+                                </li>
+
                                 <li class="sidebar-list">
                                     <i class="fa fa-thumb-tack"></i>
                                     <a class="sidebar-link sidebar-title" href="{% url 'tracker:dashboard' %}">
@@ -287,7 +302,7 @@
                                     </a>
                                 </li>
 
-                                <!-- Document Upload (New) -->
+                                <!-- Document Upload -->
                                 <li class="sidebar-list">
                                     <i class="fa fa-thumb-tack"></i>
                                     <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#documentCaptureModal">

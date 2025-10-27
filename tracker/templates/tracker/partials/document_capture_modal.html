@@ -485,41 +485,36 @@ class DocumentCaptureModal {
             return;
         }
 
-        const payload = {
-            extraction_id: this.documentId,
-            vehicle_plate: document.getElementById('vehiclePlate').value,
-            customer_phone: document.getElementById('customerPhone').value,
-            ...this.extractionData
-        };
-
         const btn = document.getElementById('createOrderFromDocBtn');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
 
-        fetch('/api/documents/create-order/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || 
-                              document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Order created successfully: ' + data.order_number);
-                location.href = `/orders/${data.order_id}/`;
+        // Use DocumentHandler for order creation
+        documentHandler.createOrderFromDocument({
+            extractionId: this.documentId,
+            vehicle_plate: document.getElementById('vehiclePlate').value,
+            customer_phone: document.getElementById('customerPhone').value,
+            useExtracted: true
+        }).then(result => {
+            if (result.success) {
+                documentHandler.showNotification(
+                    `Order created successfully: ${result.orderNumber}`,
+                    'success',
+                    3000
+                );
+                // Redirect to order detail page
+                setTimeout(() => {
+                    location.href = `/orders/${result.orderId}/`;
+                }, 1000);
             } else {
-                alert('Error: ' + data.error);
+                documentHandler.showNotification(
+                    `Error: ${result.error}`,
+                    'error',
+                    5000
+                );
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa fa-plus me-2"></i>Create Order from Data';
             }
-        })
-        .catch(error => {
-            alert('Error: ' + error.message);
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa fa-plus me-2"></i>Create Order from Data';
         });
     }
 }

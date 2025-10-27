@@ -15,7 +15,12 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 DEBUG = True
 
 # Allowed hosts
-ALLOWED_HOSTS = ['*'] if DEBUG else ['yourdomain.com']
+ALLOWED_HOSTS = ['*'] if DEBUG else ['yourdomain.com', 'a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev']
+
+# CSRF Trusted Origins (required for CSRF protection on deployed domains)
+CSRF_TRUSTED_ORIGINS = [
+    'https://a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev',
+]
 
 # Application definition
 INSTALLED_APPS = [

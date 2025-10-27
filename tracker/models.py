@@ -182,6 +182,9 @@ class Order(models.Model):
     completion_date = models.DateTimeField(blank=True, null=True)
     cancellation_reason = models.TextField(blank=True, null=True)
 
+    # Job card/identification number for quick order lookup (optional)
+    job_card_number = models.CharField(max_length=64, blank=True, null=True, unique=True)
+
     def __str__(self):
         return f"{self.order_number} - {self.customer.full_name}"
 
@@ -403,3 +406,106 @@ class ServiceAddon(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} ({self.estimated_minutes}m)"
+
+
+class DocumentScan(models.Model):
+    """Store uploaded documents (quotations, scanned documents, etc.)"""
+    DOCUMENT_TYPE_CHOICES = [
+        ('quotation', 'Quotation'),
+        ('invoice', 'Invoice'),
+        ('receipt', 'Receipt'),
+        ('estimate', 'Estimate'),
+        ('other', 'Other'),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, null=True, blank=True, related_name='document_scans')
+    vehicle_plate = models.CharField(max_length=32, blank=True, null=True, db_index=True)
+    customer_phone = models.CharField(max_length=20, blank=True, null=True)
+
+    file = models.FileField(upload_to='document_scans/')
+    document_type = models.CharField(max_length=32, choices=DOCUMENT_TYPE_CHOICES, default='quotation')
+
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_documents')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    file_name = models.CharField(max_length=255, blank=True, null=True)
+    file_size = models.PositiveIntegerField(blank=True, null=True)
+    file_mime_type = models.CharField(max_length=64, blank=True, null=True)
+
+    # Extraction status tracking
+    extraction_status = models.CharField(
+        max_length=16,
+        choices=[
+            ('pending', 'Pending'),
+            ('processing', 'Processing'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+        ],
+        default='pending'
+    )
+    extraction_error = models.TextField(blank=True, null=True)
+    extracted_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+        indexes = [
+            models.Index(fields=['order'], name='idx_docscan_order'),
+            models.Index(fields=['vehicle_plate'], name='idx_docscan_plate'),
+            models.Index(fields=['customer_phone'], name='idx_docscan_phone'),
+            models.Index(fields=['uploaded_at'], name='idx_docscan_uploaded'),
+            models.Index(fields=['extraction_status'], name='idx_docscan_extract_status'),
+        ]
+
+    def __str__(self) -> str:
+        order_str = f"Order {self.order.order_number}" if self.order else f"Plate {self.vehicle_plate}"
+        return f"{self.document_type.upper()} - {order_str}"
+
+
+class DocumentExtraction(models.Model):
+    """Store extracted data from documents"""
+    document = models.OneToOneField(DocumentScan, on_delete=models.CASCADE, related_name='extraction')
+
+    # Extracted fields (flexible JSON-like storage)
+    raw_text = models.TextField(blank=True, null=True)
+
+    # Customer info
+    extracted_customer_name = models.CharField(max_length=255, blank=True, null=True)
+    extracted_customer_phone = models.CharField(max_length=20, blank=True, null=True)
+    extracted_customer_email = models.EmailField(blank=True, null=True)
+    extracted_customer_address = models.TextField(blank=True, null=True)
+
+    # Vehicle info
+    extracted_vehicle_plate = models.CharField(max_length=32, blank=True, null=True)
+    extracted_vehicle_make = models.CharField(max_length=64, blank=True, null=True)
+    extracted_vehicle_model = models.CharField(max_length=64, blank=True, null=True)
+    extracted_vehicle_type = models.CharField(max_length=64, blank=True, null=True)
+
+    # Order/Service info
+    extracted_order_description = models.TextField(blank=True, null=True)
+    extracted_service_type = models.CharField(max_length=128, blank=True, null=True)
+    extracted_item_name = models.CharField(max_length=128, blank=True, null=True)
+    extracted_brand = models.CharField(max_length=128, blank=True, null=True)
+    extracted_quantity = models.CharField(max_length=16, blank=True, null=True)
+    extracted_tire_type = models.CharField(max_length=64, blank=True, null=True)
+
+    # Pricing info
+    extracted_amount = models.CharField(max_length=32, blank=True, null=True)
+    extracted_currency = models.CharField(max_length=16, blank=True, null=True)
+
+    # Confidence scores (0-100)
+    confidence_overall = models.PositiveIntegerField(default=0)
+    extracted_data_json = models.JSONField(default=dict, blank=True)
+
+    extracted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-extracted_at']
+        indexes = [
+            models.Index(fields=['document'], name='idx_extraction_document'),
+            models.Index(fields=['extracted_vehicle_plate'], name='idx_extraction_plate'),
+            models.Index(fields=['extracted_customer_phone'], name='idx_extraction_phone'),
+        ]
+
+    def __str__(self) -> str:
+        return f"Extraction for {self.document.file_name}"

@@ -386,12 +386,6 @@ class DocumentCaptureModal {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('vehicle_plate', vehiclePlate);
-        formData.append('customer_phone', customerPhone);
-        formData.append('document_type', docType);
-        formData.append('file', fileInput.files[0]);
-
         const uploadBtn = document.getElementById('uploadDocBtn');
         uploadBtn.disabled = true;
         uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
@@ -402,31 +396,27 @@ class DocumentCaptureModal {
 
         this.nextTab();
 
-        fetch('/api/documents/upload/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || 
-                              document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
+        // Use DocumentHandler for upload
+        documentHandler.uploadAndExtract(
+            fileInput.files[0],
+            vehiclePlate,
+            customerPhone,
+            docType
+        ).then(result => {
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="fa fa-upload me-2"></i>Upload & Extract';
 
-            if (data.success) {
-                this.documentId = data.document_id;
-                this.extractionData = data.extracted_data;
-                this.displayExtractionResults(data);
+            if (result.success) {
+                this.documentId = result.documentId;
+                this.extractionData = result.extractedData;
+                this.displayExtractionResults({
+                    document_id: result.documentId,
+                    extracted_data: result.extractedData,
+                    matches: result.matches
+                });
             } else {
-                this.showError(data.error || 'Upload failed');
+                this.showError(result.error || 'Upload failed');
             }
-        })
-        .catch(error => {
-            uploadBtn.disabled = false;
-            uploadBtn.innerHTML = '<i class="fa fa-upload me-2"></i>Upload & Extract';
-            this.showError('Upload failed: ' + error.message);
         });
     }
 

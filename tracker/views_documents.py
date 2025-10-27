@@ -90,11 +90,15 @@ def upload_document(request):
                 doc_scan.extracted_at = timezone.now()
                 doc_scan.save(update_fields=['extraction_status', 'extracted_at'])
                 
-                # Match with existing records
+                # Match with existing records and detect auto-linking opportunities
+                extracted_vehicle_plate = extraction_data.get('extracted_vehicle_plate') or vehicle_plate
+                extracted_customer_phone = extraction_data.get('extracted_customer_phone') or customer_phone
+
                 matches = match_document_to_records(
                     extraction_result.get('extraction_data', {}),
-                    vehicle_plate=extraction_data.get('extracted_vehicle_plate') or vehicle_plate,
-                    customer_phone=extraction_data.get('extracted_customer_phone') or customer_phone
+                    vehicle_plate=extracted_vehicle_plate,
+                    customer_phone=extracted_customer_phone,
+                    auto_link=True
                 )
                 
                 return JsonResponse({

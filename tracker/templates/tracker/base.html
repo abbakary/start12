@@ -172,15 +172,31 @@
                         
                      
                         
+                        <!-- Quick Start Button -->
+                        <li>
+                            <a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#quickStartModal">
+                                <i class="fa fa-play-circle me-1"></i>
+                                <span class="d-none d-sm-inline">Quick Start</span>
+                            </a>
+                        </li>
+
+                        <!-- Document Upload Button -->
+                        <li>
+                            <a href="#" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#documentCaptureModal">
+                                <i class="fa fa-cloud-upload me-1"></i>
+                                <span class="d-none d-sm-inline">Upload Doc</span>
+                            </a>
+                        </li>
+
                         <!-- Dark Mode Toggle -->
                         <li>
                             <div class="mode">
                                 <i class="moon" data-feather="moon"></i>
                             </div>
                         </li>
-                        
-                    
-                        
+
+
+
                         <!-- Profile -->
                         <li class="profile-nav onhover-dropdown">
                             <div class="media profile-media">
@@ -269,6 +285,21 @@
                                         <h6>Pinned</h6>
                                     </div>
                                 </li>
+
+                                <!-- Quick Start (PRIMARY) -->
+                                <li class="sidebar-list">
+                                    <i class="fa fa-thumb-tack"></i>
+                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#quickStartModal">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-play-circle"></use>
+                                        </svg>
+                                        <span>
+                                            <strong>Quick Start</strong>
+                                            <span class="badge bg-success ms-2">New Order</span>
+                                        </span>
+                                    </a>
+                                </li>
+
                                 <li class="sidebar-list">
                                     <i class="fa fa-thumb-tack"></i>
                                     <a class="sidebar-link sidebar-title" href="{% url 'tracker:dashboard' %}">
@@ -276,6 +307,17 @@
                                             <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-home"></use>
                                         </svg>
                                         <span>Dashboard</span>
+                                    </a>
+                                </li>
+
+                                <!-- Document Upload -->
+                                <li class="sidebar-list">
+                                    <i class="fa fa-thumb-tack"></i>
+                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#documentCaptureModal">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-file"></use>
+                                        </svg>
+                                        <span>Upload Document</span>
                                     </a>
                                 </li>
                                 
@@ -421,6 +463,7 @@
     <script src="{% static 'assets/js/header-slick.js' %}"></script>
     <script src="{% static 'assets/js/script.js' %}"></script>
     <script src="{% static 'js/phone_validation.js' %}"></script>
+    <script src="{% static 'js/document_handler.js' %}"></script>
     
     <!-- Notification initialization -->
     <script>
@@ -435,7 +478,16 @@
     </script>
 
     {% block extra_js %}{% endblock %}
-    
+
+    <!-- Document Capture Modal -->
+    {% include 'tracker/partials/document_capture_modal.html' %}
+
+    <!-- Data Mismatch Handler Modal -->
+    {% include 'tracker/partials/data_mismatch_handler.html' %}
+
+    <!-- Quick Start Modal -->
+    {% include 'tracker/partials/quick_start_modal.html' %}
+
     <!-- Footer -->
     <footer class="footer py-3 mt-4" style="background-color: #f8f9fa; border-top: 1px solid #dee2e6;">
         <div class="container-fluid">

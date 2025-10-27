@@ -1,0 +1,557 @@
+{% load static %}
+
+<!-- Document Capture Modal -->
+<div class="modal fade" id="documentCaptureModal" tabindex="-1" role="dialog" aria-labelledby="documentCaptureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="documentCaptureModalLabel">
+                    <i class="fa fa-file-upload me-2"></i>Upload Document & Capture Vehicle Info
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Tab Navigation -->
+                <ul class="nav nav-tabs mb-3" id="documentTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="vehicle-tab" data-bs-toggle="tab" data-bs-target="#vehicleTab" type="button" role="tab" aria-controls="vehicleTab" aria-selected="true">
+                            <i class="fa fa-car me-2"></i>Vehicle Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="document-tab" data-bs-toggle="tab" data-bs-target="#documentTab" type="button" role="tab" aria-controls="documentTab" aria-selected="false">
+                            <i class="fa fa-file me-2"></i>Upload Document
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="extraction-tab" data-bs-toggle="tab" data-bs-target="#extractionTab" type="button" role="tab" aria-controls="extractionTab" aria-selected="false">
+                            <i class="fa fa-magic me-2"></i>Extracted Data
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="documentTabContent">
+                    <!-- Vehicle Information Tab -->
+                    <div class="tab-pane fade show active" id="vehicleTab" role="tabpanel" aria-labelledby="vehicle-tab">
+                        <form id="vehicleInfoForm" class="needs-validation">
+                            <div class="mb-3">
+                                <label for="vehiclePlate" class="form-label">
+                                    <strong>Vehicle Plate Number</strong>
+                                    <span class="badge bg-danger">Required</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fa fa-id-card"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="vehiclePlate" name="vehicle_plate" 
+                                           placeholder="e.g., ABC-1234 or 1234-ABC" required 
+                                           autocomplete="off" maxlength="20">
+                                </div>
+                                <small class="form-text text-muted d-block mt-2">
+                                    <strong>Supported formats:</strong> ABC-1234, 1234-ABC, ABC 1234, 1234 ABC
+                                </small>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="vehicleMake" class="form-label">Vehicle Make/Brand</label>
+                                        <input type="text" class="form-control" id="vehicleMake" name="vehicle_make" 
+                                               placeholder="e.g., Toyota, Honda" autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="vehicleModel" class="form-label">Vehicle Model</label>
+                                        <input type="text" class="form-control" id="vehicleModel" name="vehicle_model" 
+                                               placeholder="e.g., Camry, Accord" autocomplete="off">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="vehicleType" class="form-label">Vehicle Type</label>
+                                <select class="form-control" id="vehicleType" name="vehicle_type">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="sedan">Sedan</option>
+                                    <option value="suv">SUV</option>
+                                    <option value="truck">Truck</option>
+                                    <option value="van">Van</option>
+                                    <option value="coupe">Coupe</option>
+                                    <option value="hatchback">Hatchback</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <button type="button" class="btn btn-primary w-100" onclick="docModal.nextTab()">
+                                <i class="fa fa-arrow-right me-2"></i>Next: Upload Document
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Document Upload Tab -->
+                    <div class="tab-pane fade" id="documentTab" role="tabpanel" aria-labelledby="document-tab">
+                        <div id="documentTypeSelector" class="mb-3">
+                            <label class="form-label"><strong>Document Type</strong></label>
+                            <div class="btn-group w-100 d-flex flex-wrap" role="group">
+                                <input type="radio" class="btn-check" name="document_type" id="docQuotation" value="quotation" checked>
+                                <label class="btn btn-outline-primary flex-fill" for="docQuotation">Quotation</label>
+
+                                <input type="radio" class="btn-check" name="document_type" id="docInvoice" value="invoice">
+                                <label class="btn btn-outline-primary flex-fill" for="docInvoice">Invoice</label>
+
+                                <input type="radio" class="btn-check" name="document_type" id="docReceipt" value="receipt">
+                                <label class="btn btn-outline-primary flex-fill" for="docReceipt">Receipt</label>
+
+                                <input type="radio" class="btn-check" name="document_type" id="docEstimate" value="estimate">
+                                <label class="btn btn-outline-primary flex-fill" for="docEstimate">Estimate</label>
+
+                                <input type="radio" class="btn-check" name="document_type" id="docOther" value="other">
+                                <label class="btn btn-outline-primary flex-fill" for="docOther">Other</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label"><strong>Upload File</strong></label>
+                            <div class="upload-area card border-2 border-dashed p-4 text-center" id="uploadArea" style="cursor: pointer; background-color: #f9f9f9;">
+                                <div class="mb-3">
+                                    <i class="fa fa-cloud-upload" style="font-size: 48px; color: #0d6efd;"></i>
+                                </div>
+                                <p class="mb-1"><strong>Click to select or drag & drop</strong></p>
+                                <p class="text-muted small mb-3">Supported: PDF, JPEG, PNG, BMP, TIFF (Max 50MB)</p>
+                                <input type="file" id="documentFile" name="document_file" accept=".pdf,.jpg,.jpeg,.png,.bmp,.tiff" hidden required>
+                            </div>
+                            <div id="fileNameDisplay" class="mt-2 d-none">
+                                <small class="text-success">
+                                    <i class="fa fa-check-circle me-1"></i>
+                                    <span id="selectedFileName"></span>
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="customerPhone" class="form-label">Customer Phone (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fa fa-phone"></i>
+                                </span>
+                                <input type="tel" class="form-control" id="customerPhone" name="customer_phone" 
+                                       placeholder="e.g., +966501234567" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="fa fa-info-circle me-2"></i>
+                            <strong>Processing:</strong> The system will extract customer, vehicle, and order information from the document using AI.
+                        </div>
+
+                        <button type="button" class="btn btn-secondary me-2" onclick="docModal.prevTab()">
+                            <i class="fa fa-arrow-left me-2"></i>Back
+                        </button>
+                        <button type="button" class="btn btn-primary" id="uploadDocBtn" onclick="docModal.uploadDocument()">
+                            <i class="fa fa-upload me-2"></i>Upload & Extract
+                        </button>
+                    </div>
+
+                    <!-- Extracted Data Tab -->
+                    <div class="tab-pane fade" id="extractionTab" role="tabpanel" aria-labelledby="extraction-tab">
+                        <div id="extractionProgress" class="mb-4 d-none">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                <span>Processing document...</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                            </div>
+                        </div>
+
+                        <div id="extractionResults" class="d-none">
+                            <!-- Customer Data -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fa fa-user me-2"></i>Customer Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Name</label>
+                                                <p id="extractedCustomerName" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Phone</label>
+                                                <p id="extractedCustomerPhone" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Email</label>
+                                                <p id="extractedCustomerEmail" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vehicle Data -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fa fa-car me-2"></i>Vehicle Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Plate</label>
+                                                <p id="extractedVehiclePlate" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Make</label>
+                                                <p id="extractedVehicleMake" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Model</label>
+                                                <p id="extractedVehicleModel" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Order/Service Data -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="fa fa-clipboard me-2"></i>Service Information
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <label class="small text-muted">Service Type</label>
+                                        <p id="extractedServiceType" class="fw-bold">-</p>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Item Name</label>
+                                                <p id="extractedItemName" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Brand</label>
+                                                <p id="extractedBrand" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Quantity</label>
+                                                <p id="extractedQuantity" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-2">
+                                                <label class="small text-muted">Amount</label>
+                                                <p id="extractedAmount" class="fw-bold">-</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Confidence Score -->
+                            <div class="alert alert-warning" id="confidenceAlert" role="alert">
+                                <strong>Confidence:</strong> <span id="confidenceScore">0</span>%
+                            </div>
+
+                            <!-- Existing Records Found -->
+                            <div id="existingRecordsContainer" class="d-none">
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fa fa-link me-2"></i>
+                                    <strong>Existing Records Found</strong> - Click to link or auto-select below
+                                </div>
+                                <div id="existingRecords" class="mb-3"></div>
+                            </div>
+                        </div>
+
+                        <div id="extractionError" class="alert alert-danger d-none" role="alert">
+                            <strong>Error:</strong> <span id="errorMessage"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success d-none" id="createOrderFromDocBtn" onclick="docModal.createOrder()">
+                    <i class="fa fa-plus me-2"></i>Create Order from Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Document Modal Controller
+class DocumentCaptureModal {
+    constructor() {
+        this.currentTab = 0;
+        this.extractionData = null;
+        this.documentId = null;
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // File upload area
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('documentFile');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#e7f3ff';
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.backgroundColor = '#f9f9f9';
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#f9f9f9';
+            fileInput.files = e.dataTransfer.files;
+            this.updateFileName();
+        });
+
+        fileInput.addEventListener('change', () => this.updateFileName());
+    }
+
+    updateFileName() {
+        const fileInput = document.getElementById('documentFile');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const selectedFileName = document.getElementById('selectedFileName');
+
+        if (fileInput.files && fileInput.files[0]) {
+            selectedFileName.textContent = fileInput.files[0].name;
+            fileNameDisplay.classList.remove('d-none');
+        } else {
+            fileNameDisplay.classList.add('d-none');
+        }
+    }
+
+    nextTab() {
+        const tabs = document.querySelectorAll('.nav-link');
+        if (this.currentTab < tabs.length - 1) {
+            this.currentTab++;
+            tabs[this.currentTab].click();
+        }
+    }
+
+    prevTab() {
+        const tabs = document.querySelectorAll('.nav-link');
+        if (this.currentTab > 0) {
+            this.currentTab--;
+            tabs[this.currentTab].click();
+        }
+    }
+
+    uploadDocument() {
+        const vehiclePlate = document.getElementById('vehiclePlate').value.trim();
+        const fileInput = document.getElementById('documentFile');
+        const docType = document.querySelector('input[name="document_type"]:checked').value;
+        const customerPhone = document.getElementById('customerPhone').value.trim();
+
+        if (!vehiclePlate) {
+            alert('Vehicle plate is required');
+            return;
+        }
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert('Please select a document file');
+            return;
+        }
+
+        const uploadBtn = document.getElementById('uploadDocBtn');
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+
+        document.getElementById('extractionProgress').classList.remove('d-none');
+        document.getElementById('extractionResults').classList.add('d-none');
+        document.getElementById('extractionError').classList.add('d-none');
+
+        this.nextTab();
+
+        // Use DocumentHandler for upload
+        documentHandler.uploadAndExtract(
+            fileInput.files[0],
+            vehiclePlate,
+            customerPhone,
+            docType
+        ).then(result => {
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fa fa-upload me-2"></i>Upload & Extract';
+
+            if (result.success) {
+                this.documentId = result.documentId;
+                this.extractionData = result.extractedData;
+                this.displayExtractionResults({
+                    document_id: result.documentId,
+                    extracted_data: result.extractedData,
+                    matches: result.matches
+                });
+            } else {
+                this.showError(result.error || 'Upload failed');
+            }
+        });
+    }
+
+    displayExtractionResults(data) {
+        const extracted = data.extracted_data || {};
+
+        document.getElementById('extractedCustomerName').textContent = extracted.customer_name || '-';
+        document.getElementById('extractedCustomerPhone').textContent = extracted.customer_phone || '-';
+        document.getElementById('extractedCustomerEmail').textContent = extracted.email || '-';
+        document.getElementById('extractedVehiclePlate').textContent = extracted.vehicle_plate || '-';
+        document.getElementById('extractedVehicleMake').textContent = extracted.vehicle_make || '-';
+        document.getElementById('extractedVehicleModel').textContent = extracted.vehicle_model || '-';
+        document.getElementById('extractedServiceType').textContent = extracted.service_type || '-';
+        document.getElementById('extractedItemName').textContent = extracted.item_name || '-';
+        document.getElementById('extractedBrand').textContent = extracted.brand || '-';
+        document.getElementById('extractedQuantity').textContent = extracted.quantity || '-';
+        document.getElementById('extractedAmount').textContent = extracted.amount || '-';
+        document.getElementById('confidenceScore').textContent = extracted.confidence || 0;
+
+        document.getElementById('extractionProgress').classList.add('d-none');
+        document.getElementById('extractionResults').classList.remove('d-none');
+        document.getElementById('createOrderFromDocBtn').classList.remove('d-none');
+
+        // Show existing records if any
+        if (data.matches && Object.keys(data.matches).length > 0) {
+            this.displayExistingRecords(data.matches);
+        }
+    }
+
+    displayExistingRecords(matches) {
+        const container = document.getElementById('existingRecordsContainer');
+        const recordsDiv = document.getElementById('existingRecords');
+        recordsDiv.innerHTML = '';
+
+        if (matches.vehicle || matches.customer) {
+            container.classList.remove('d-none');
+
+            if (matches.vehicle) {
+                recordsDiv.innerHTML += `
+                    <div class="alert alert-info mb-2" role="alert">
+                        <strong>Vehicle Found:</strong> ${matches.vehicle.plate} (${matches.vehicle.make} ${matches.vehicle.model})
+                    </div>
+                `;
+            }
+
+            if (matches.customer) {
+                recordsDiv.innerHTML += `
+                    <div class="alert alert-info mb-2" role="alert">
+                        <strong>Customer Found:</strong> ${matches.customer.name} (${matches.customer.phone})
+                    </div>
+                `;
+            }
+        }
+    }
+
+    showError(message) {
+        document.getElementById('extractionProgress').classList.add('d-none');
+        document.getElementById('extractionResults').classList.add('d-none');
+        document.getElementById('extractionError').classList.remove('d-none');
+        document.getElementById('errorMessage').textContent = message;
+    }
+
+    createOrder() {
+        if (!this.extractionData) {
+            alert('No extraction data available');
+            return;
+        }
+
+        const btn = document.getElementById('createOrderFromDocBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+
+        // Use DocumentHandler for order creation
+        documentHandler.createOrderFromDocument({
+            extractionId: this.documentId,
+            vehicle_plate: document.getElementById('vehiclePlate').value,
+            customer_phone: document.getElementById('customerPhone').value,
+            useExtracted: true
+        }).then(result => {
+            if (result.success) {
+                documentHandler.showNotification(
+                    `Order created successfully: ${result.orderNumber}`,
+                    'success',
+                    3000
+                );
+                // Redirect to order detail page
+                setTimeout(() => {
+                    location.href = `/orders/${result.orderId}/`;
+                }, 1000);
+            } else {
+                documentHandler.showNotification(
+                    `Error: ${result.error}`,
+                    'error',
+                    5000
+                );
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa fa-plus me-2"></i>Create Order from Data';
+            }
+        });
+    }
+}
+
+// Initialize modal
+const docModal = new DocumentCaptureModal();
+</script>
+
+<style>
+.upload-area {
+    transition: all 0.3s ease;
+    border-color: #dee2e6;
+}
+
+.upload-area:hover {
+    border-color: #0d6efd;
+    background-color: #f0f7ff !important;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+    border-bottom: 2px solid transparent;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom: 2px solid #0d6efd;
+    background-color: transparent;
+}
+
+.card-header {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.btn-group .btn-check:checked + .btn {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+</style>

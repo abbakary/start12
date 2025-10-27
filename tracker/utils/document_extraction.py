@@ -14,6 +14,12 @@ except ImportError:
     HAS_PYPDF2 = False
 
 try:
+    import fitz
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
+try:
     from PIL import Image
     import pytesseract
     HAS_OCR = True
@@ -64,27 +70,52 @@ class DocumentExtractor:
             }
     
     def _extract_from_pdf(self, file_path: str) -> Dict[str, Any]:
-        """Extract text from PDF using PyPDF2"""
+        """Extract text from PDF using PyMuPDF (preferred) or PyPDF2"""
+
+        # Try PyMuPDF first (better performance and accuracy)
+        if HAS_PYMUPDF:
+            try:
+                raw_text = ""
+                doc = fitz.open(file_path)
+                num_pages = doc.page_count
+
+                for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
+                    page = doc[page_num]
+                    raw_text += page.get_text() or ""
+
+                doc.close()
+
+                return {
+                    'success': True,
+                    'raw_text': raw_text,
+                    'source': 'pdf_pymupdf',
+                    'pages_processed': min(num_pages, 10),
+                    'structured_data': self._parse_text(raw_text)
+                }
+            except Exception as e:
+                logger.warning(f"PyMuPDF extraction failed, trying PyPDF2: {str(e)}")
+
+        # Fallback to PyPDF2
         if not HAS_PYPDF2:
             return {
                 'success': False,
-                'error': 'PyPDF2 is not installed. Please install it with: pip install PyPDF2'
+                'error': 'Neither PyMuPDF nor PyPDF2 is installed. Install with: pip install PyMuPDF PyPDF2'
             }
-        
+
         try:
             raw_text = ""
             with open(file_path, 'rb') as pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 num_pages = len(pdf_reader.pages)
-                
+
                 for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
                     page = pdf_reader.pages[page_num]
                     raw_text += page.extract_text() or ""
-            
+
             return {
                 'success': True,
                 'raw_text': raw_text,
-                'source': 'pdf',
+                'source': 'pdf_pypdf2',
                 'pages_processed': min(num_pages, 10),
                 'structured_data': self._parse_text(raw_text)
             }
@@ -362,7 +393,67 @@ def extract_document(file_path: str) -> Dict[str, Any]:
 
 def match_document_to_records(extracted_data: Dict[str, Any],
                              vehicle_plate: Optional[str] = None,
-                             customer_phone: Optional[str] = None) -> Dict[str, Any]:
-    """Convenience function to match extracted data to existing records"""
+                             customer_phone: Optional[str] = None,
+                             auto_link: bool = True) -> Dict[str, Any]:
+    """
+    Convenience function to match extracted data to existing records
+
+    Args:
+        extracted_data: Extracted data from document
+        vehicle_plate: Vehicle plate from upload form or extracted
+        customer_phone: Customer phone from upload form or extracted
+        auto_link: Whether to automatically link records (default True)
+
+    Returns:
+        Dictionary with matched records and linking suggestions
+    """
+    from tracker.models import Vehicle, Customer, Order
+
+    matches = {
+        'vehicle': None,
+        'customer': None,
+        'orders': [],
+        'confidence': 0,
+        'auto_link_suggested': False
+    }
+
+    if not auto_link:
+        return matches
+
     extractor = DocumentExtractor()
-    return extractor.match_with_existing(extracted_data, vehicle_plate, customer_phone)
+    base_matches = extractor.match_with_existing(extracted_data, vehicle_plate, customer_phone)
+
+    # Enhance matches with additional linking suggestions
+    try:
+        # If we found a vehicle, get recent orders
+        if base_matches.get('vehicle'):
+            vehicle_id = base_matches['vehicle'].get('id')
+            if vehicle_id:
+                orders = Order.objects.filter(
+                    vehicle_id=vehicle_id
+                ).order_by('-created_at')[:3]
+
+                matches['orders'] = [
+                    {
+                        'id': order.id,
+                        'order_number': order.order_number,
+                        'status': order.status,
+                        'created_at': order.created_at.isoformat(),
+                    }
+                    for order in orders
+                ]
+
+        # Suggest auto-linking if confidence is high
+        extracted_phone = extracted_data.get('structured_data', {}).get('phone_numbers', [None])[0]
+        extracted_plate = extracted_data.get('structured_data', {}).get('vehicle_plates', [None])[0]
+
+        if (extracted_phone and customer_phone and extracted_phone in customer_phone) or \
+           (extracted_plate and vehicle_plate and extracted_plate.upper() in vehicle_plate.upper()):
+            matches['auto_link_suggested'] = True
+
+        matches.update(base_matches)
+    except Exception as e:
+        logger.warning(f"Error enhancing matches: {str(e)}")
+        matches.update(base_matches)
+
+    return matches

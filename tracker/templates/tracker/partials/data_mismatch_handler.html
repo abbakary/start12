@@ -1,0 +1,286 @@
+<!-- Data Mismatch Handler Modal -->
+<div class="modal fade" id="dataMismatchModal" tabindex="-1" role="dialog" aria-labelledby="dataMismatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dataMismatchModalLabel">
+                    <i class="fa fa-code-branch me-2"></i>Data Mismatch - Choose Action
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="fa fa-exclamation-triangle me-2"></i>
+                    The system found differences between extracted data and existing records. Choose how to handle them.
+                </div>
+
+                <!-- Mismatch List -->
+                <div id="mismatchContainer"></div>
+
+                <!-- Action Selection -->
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Resolution Strategy</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="mismatchStrategy" id="strategyKeepExisting" value="keep_existing" checked>
+                                <label class="form-check-label" for="strategyKeepExisting">
+                                    <strong>Keep Existing Data</strong>
+                                    <small class="d-block text-muted">Use the currently stored information, ignore extracted data</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="mismatchStrategy" id="strategyOverride" value="override">
+                                <label class="form-check-label" for="strategyOverride">
+                                    <strong>Override with Extracted Data</strong>
+                                    <small class="d-block text-muted">Replace existing data with newly extracted information</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="mismatchStrategy" id="strategyMerge" value="merge">
+                                <label class="form-check-label" for="strategyMerge">
+                                    <strong>Merge with Manual Review</strong>
+                                    <small class="d-block text-muted">Select per-field which data to keep or override below</small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Merge Fields (shown only when merge strategy selected) -->
+                <div id="manualMergeContainer" class="mt-4 d-none">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">Select Data for Each Field</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="mergeFieldsContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyMismatchResolutionBtn" onclick="dataMismatchHandler.applyResolution()">
+                    <i class="fa fa-check me-2"></i>Apply Resolution
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class DataMismatchHandler {
+    constructor() {
+        this.mismatches = {};
+        this.mergedData = {};
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        document.querySelectorAll('input[name="mismatchStrategy"]').forEach(radio => {
+            radio.addEventListener('change', (e) => this.onStrategyChange(e.target.value));
+        });
+    }
+
+    onStrategyChange(strategy) {
+        const manualMergeContainer = document.getElementById('manualMergeContainer');
+        if (strategy === 'merge') {
+            manualMergeContainer.classList.remove('d-none');
+        } else {
+            manualMergeContainer.classList.add('d-none');
+        }
+    }
+
+    showMismatchModal(existingData, extractedData, dataType = 'customer') {
+        this.mismatches = {};
+        this.mergedData = {};
+
+        const mismatchContainer = document.getElementById('mismatchContainer');
+        const mergeFieldsContainer = document.getElementById('mergeFieldsContainer');
+        mismatchContainer.innerHTML = '';
+        mergeFieldsContainer.innerHTML = '';
+
+        let mismatchCount = 0;
+        const fieldMapping = {
+            'customer': ['name', 'phone', 'email', 'address'],
+            'vehicle': ['plate_number', 'make', 'model', 'vehicle_type'],
+            'order': ['description', 'item_name', 'brand', 'quantity', 'tire_type', 'amount']
+        };
+
+        const fields = fieldMapping[dataType] || [];
+
+        fields.forEach(field => {
+            const existing = existingData[field] || '';
+            const extracted = extractedData[field] || '';
+
+            if (existing && extracted && existing !== extracted) {
+                mismatchCount++;
+                this.mismatches[field] = { existing, extracted };
+
+                // Add to mismatch list
+                const card = this.createMismatchCard(field, existing, extracted);
+                mismatchContainer.appendChild(card);
+
+                // Add to merge fields
+                const mergeOption = this.createMergeOption(field, existing, extracted);
+                mergeFieldsContainer.appendChild(mergeOption);
+            }
+        });
+
+        if (mismatchCount === 0) {
+            mismatchContainer.innerHTML = '<div class="alert alert-success" role="alert">No data mismatches found.</div>';
+        }
+
+        // Reset strategy to keep existing
+        document.getElementById('strategyKeepExisting').checked = true;
+        document.getElementById('manualMergeContainer').classList.add('d-none');
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('dataMismatchModal'));
+        modal.show();
+    }
+
+    createMismatchCard(field, existing, extracted) {
+        const card = document.createElement('div');
+        card.className = 'card mb-3 border-warning';
+        card.innerHTML = `
+            <div class="card-body">
+                <h6 class="card-title">${this.formatFieldName(field)}</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="p-2 border rounded bg-light mb-2">
+                            <small class="text-muted d-block mb-1">Current Value:</small>
+                            <code class="d-block">${this.escapeHtml(existing)}</code>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-2 border rounded bg-info bg-opacity-10 mb-2">
+                            <small class="text-muted d-block mb-1">Extracted Value:</small>
+                            <code class="d-block">${this.escapeHtml(extracted)}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
+    createMergeOption(field, existing, extracted) {
+        const container = document.createElement('div');
+        container.className = 'mb-3 p-3 border rounded';
+        container.innerHTML = `
+            <label class="mb-2"><strong>${this.formatFieldName(field)}</strong></label>
+            <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="merge_${field}" id="merge_${field}_existing" value="existing" checked>
+                <label class="btn btn-outline-secondary flex-fill" for="merge_${field}_existing">
+                    Keep: <code>${this.escapeHtml(existing)}</code>
+                </label>
+
+                <input type="radio" class="btn-check" name="merge_${field}" id="merge_${field}_extracted" value="extracted">
+                <label class="btn btn-outline-info flex-fill" for="merge_${field}_extracted">
+                    Use: <code>${this.escapeHtml(extracted)}</code>
+                </label>
+            </div>
+        `;
+
+        // Store selection
+        container.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.mergedData[field] = e.target.value === 'existing' ? existing : extracted;
+            });
+        });
+
+        return container;
+    }
+
+    formatFieldName(field) {
+        return field
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    applyResolution() {
+        const strategy = document.querySelector('input[name="mismatchStrategy"]:checked').value;
+        const btn = document.getElementById('applyMismatchResolutionBtn');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+
+        // Prepare result data based on strategy
+        let resultData = {};
+
+        if (strategy === 'keep_existing') {
+            resultData = Object.keys(this.mismatches).reduce((acc, field) => {
+                acc[field] = this.mismatches[field].existing;
+                return acc;
+            }, {});
+        } else if (strategy === 'override') {
+            resultData = Object.keys(this.mismatches).reduce((acc, field) => {
+                acc[field] = this.mismatches[field].extracted;
+                return acc;
+            }, {});
+        } else if (strategy === 'merge') {
+            resultData = { ...this.mergedData };
+        }
+
+        // Call callback if registered
+        if (this.onResolutionCallback) {
+            this.onResolutionCallback(strategy, resultData);
+        }
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('dataMismatchModal'));
+        modal.hide();
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa fa-check me-2"></i>Apply Resolution';
+    }
+
+    onResolution(callback) {
+        this.onResolutionCallback = callback;
+    }
+}
+
+// Initialize handler
+const dataMismatchHandler = new DataMismatchHandler();
+</script>
+
+<style>
+#mismatchContainer .card {
+    border-left: 4px solid #ffc107;
+}
+
+.btn-group .btn-check:checked + .btn {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+#mergeFieldsContainer .btn-group {
+    gap: 0;
+}
+
+code {
+    color: #d63384;
+    background-color: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+</style>

@@ -6,6 +6,8 @@ from . import views
 from .views import CustomLoginView, CustomLogoutView
 from .views_api_fix import api_customer_groups_data_fixed
 from . import branch_metrics as views_branch
+from . import views_documents
+from . import views_quick_start
 
 app_name = "tracker"
 
@@ -142,4 +144,12 @@ urlpatterns = [
     path("api/documents/verify-extraction/", views_documents.verify_and_update_extraction, name="api_verify_extraction"),
     path("api/documents/search-job-card/", views_documents.search_by_job_card, name="api_search_job_card"),
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
+
+    # Quick Start Integration
+    path("customer/register-with-extraction/", views_quick_start.customer_register_with_extraction, name="customer_register_extraction"),
+    path("customer/register-with-extraction/<str:vehicle_plate>/", views_quick_start.customer_register_with_extraction, name="customer_register_extraction_plate"),
+    path("orders/create-with-extraction/", views_quick_start.order_create_with_extraction, name="order_create_extraction"),
+    path("api/quick-start/auto-fill-order/", views_quick_start.auto_fill_order_from_extraction, name="api_auto_fill_order"),
+    path("api/quick-start/detect-customer-mismatch/", views_quick_start.detect_and_merge_customer_data, name="api_detect_mismatch"),
+    path("api/quick-start/apply-customer-merge/", views_quick_start.apply_customer_data_merge, name="api_apply_merge"),
 ]

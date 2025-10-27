@@ -14,6 +14,12 @@ except ImportError:
     HAS_PYPDF2 = False
 
 try:
+    import fitz
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
+try:
     from PIL import Image
     import pytesseract
     HAS_OCR = True

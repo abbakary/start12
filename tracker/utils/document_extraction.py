@@ -70,27 +70,52 @@ class DocumentExtractor:
             }
     
     def _extract_from_pdf(self, file_path: str) -> Dict[str, Any]:
-        """Extract text from PDF using PyPDF2"""
+        """Extract text from PDF using PyMuPDF (preferred) or PyPDF2"""
+
+        # Try PyMuPDF first (better performance and accuracy)
+        if HAS_PYMUPDF:
+            try:
+                raw_text = ""
+                doc = fitz.open(file_path)
+                num_pages = doc.page_count
+
+                for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
+                    page = doc[page_num]
+                    raw_text += page.get_text() or ""
+
+                doc.close()
+
+                return {
+                    'success': True,
+                    'raw_text': raw_text,
+                    'source': 'pdf_pymupdf',
+                    'pages_processed': min(num_pages, 10),
+                    'structured_data': self._parse_text(raw_text)
+                }
+            except Exception as e:
+                logger.warning(f"PyMuPDF extraction failed, trying PyPDF2: {str(e)}")
+
+        # Fallback to PyPDF2
         if not HAS_PYPDF2:
             return {
                 'success': False,
-                'error': 'PyPDF2 is not installed. Please install it with: pip install PyPDF2'
+                'error': 'Neither PyMuPDF nor PyPDF2 is installed. Install with: pip install PyMuPDF PyPDF2'
             }
-        
+
         try:
             raw_text = ""
             with open(file_path, 'rb') as pdf_file:
                 pdf_reader = PyPDF2.PdfReader(pdf_file)
                 num_pages = len(pdf_reader.pages)
-                
+
                 for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
                     page = pdf_reader.pages[page_num]
                     raw_text += page.extract_text() or ""
-            
+
             return {
                 'success': True,
                 'raw_text': raw_text,
-                'source': 'pdf',
+                'source': 'pdf_pypdf2',
                 'pages_processed': min(num_pages, 10),
                 'structured_data': self._parse_text(raw_text)
             }

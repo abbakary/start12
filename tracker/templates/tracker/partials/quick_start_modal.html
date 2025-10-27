@@ -420,6 +420,8 @@ class QuickStartFlow {
         formData.append('file', this.uploadedDocument);
         formData.append('vehicle_plate', plate);
         formData.append('document_type', docType);
+        // Include order start time
+        formData.append('order_start_time', this.orderStartTime.toISOString());
 
         try {
             const response = await fetch('/api/documents/upload/', {
@@ -433,9 +435,10 @@ class QuickStartFlow {
             const data = await response.json();
 
             if (data.success) {
-                // Store extracted data in session storage for use in order form
-                sessionStorage.setItem('extracted_order_data', JSON.stringify(data.extracted_data));
+                // Store document ID to reference later
+                // The extracted data will be available through the API
                 sessionStorage.setItem('extracted_document_id', data.document_id);
+                sessionStorage.setItem('quick_start_document_id', data.document_id);
                 this.redirectToOrderFlow();
             } else {
                 alert('Document upload failed: ' + data.error);

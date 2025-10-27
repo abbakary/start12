@@ -181,24 +181,260 @@
       }, function(err){ console.error('AJAX error', err); alert('Request failed: ' + err); }); 
     }); }
 
-    // Intent and service selection visual toggles
-    window.selectIntent = function(intentValue){
+    function initCustomerTypeFields(){
+      var customerType = document.getElementById('id_customer_type');
+      if(!customerType) return;
+      var personalField = document.getElementById('personal-subtype-field');
+      var organizationField = document.getElementById('organization-field');
+      var taxField = document.getElementById('tax-field');
+      function toggleFields(){
+        var val = customerType.value;
+        if(personalField) personalField.style.display = 'none';
+        if(organizationField) organizationField.style.display = 'none';
+        if(taxField) taxField.style.display = 'none';
+        if(val === 'personal'){
+          if(personalField) personalField.style.display = 'block';
+        }else if(['company','government','ngo'].indexOf(val) !== -1){
+          if(organizationField) organizationField.style.display = 'block';
+          if(taxField) taxField.style.display = 'block';
+        }
+      }
+      customerType.addEventListener('change', toggleFields);
+      toggleFields();
+    }
+
+    function applyIntentSelection(intentValue){
+      var hiddenIntent = document.getElementById('registrationIntent');
+      if(hiddenIntent) hiddenIntent.value = intentValue;
+      document.querySelectorAll('input[name="intent"]').forEach(function(radio){
+        radio.checked = (radio.value === intentValue);
+      });
       document.querySelectorAll('.intent-card').forEach(function(card){ card.classList.remove('border-primary','bg-light'); });
-      var clicked = event.currentTarget || event.target;
-      if(clicked) clicked.classList.add('border-primary','bg-light');
-      var radio = document.querySelector('input[name="intent"][value="'+intentValue+'"]');
-      if(radio){ radio.checked = true; }
-      var next = document.getElementById('nextStep2'); if(next) next.disabled = false;
+      var targetCard = document.querySelector('.intent-card input[value="'+intentValue+'"]');
+      if(targetCard && targetCard.closest('.intent-card')){
+        var card = targetCard.closest('.intent-card');
+        card.classList.add('border-primary','bg-light');
+      }
+      var nextIntentBtn = document.getElementById('nextStep2');
+      if(nextIntentBtn) nextIntentBtn.disabled = false;
+    }
+
+    window.selectIntent = function(intentValue){
+      applyIntentSelection(intentValue);
     };
+
+    function initIntentCards(){
+      var radios = document.querySelectorAll('input[name="intent"]');
+      if(!radios.length) return;
+      var selectedValue = '';
+      radios.forEach(function(radio){
+        if(radio.checked && !selectedValue){
+          selectedValue = radio.value;
+        }
+      });
+      if(selectedValue){
+        applyIntentSelection(selectedValue);
+      }
+    }
 
     window.selectServiceType = function(serviceValue){
       document.querySelectorAll('.service-card').forEach(function(card){ card.classList.remove('border-primary','bg-light'); });
-      var clicked = event.currentTarget || event.target;
-      if(clicked) clicked.classList.add('border-primary','bg-light');
       var radio = document.querySelector('input[name="service_type"][value="'+serviceValue+'"]');
       if(radio){ radio.checked = true; }
-      var next = document.getElementById('nextServiceBtn'); if(next) next.disabled = false;
+      var selectedCard = radio && radio.closest('.service-card');
+      if(selectedCard){ selectedCard.classList.add('border-primary','bg-light'); }
+      var nextServiceBtn = document.getElementById('nextServiceBtn');
+      if(nextServiceBtn) nextServiceBtn.disabled = false;
     };
+
+    function initServiceEtaHandlers(){
+      var etaInput = document.getElementById('estimated_duration');
+      var hint = document.getElementById('cr_total_eta_hint');
+      var serviceSelector = 'input[type="checkbox"][name="service_selection"]';
+      var boxes = document.querySelectorAll(serviceSelector);
+      if(!boxes.length && !etaInput && !hint) return;
+      function toggleWrapperState(cb){
+        var wrapper = cb && cb.closest('.form-check');
+        if(!wrapper || wrapper.dataset.cardClickBound === '1') return;
+        wrapper.dataset.cardClickBound = '1';
+        wrapper.addEventListener('click', function(e){
+          if(e.target === cb || e.target.closest('label')) return;
+          e.preventDefault();
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+      }
+      function updateServiceEta(){
+        var total = 0;
+        Array.prototype.forEach.call(document.querySelectorAll(serviceSelector), function(cb){
+          if(cb && cb.checked){
+            var minutes = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+            if(!isNaN(minutes)) total += minutes;
+          }
+        });
+        if(etaInput){
+          etaInput.value = total > 0 ? String(total) : '0';
+        }
+        if(hint){
+          if(total > 0){
+            hint.style.display = '';
+            hint.textContent = 'Estimated total time: ' + total + ' mins';
+          }else{
+            hint.style.display = 'none';
+            hint.textContent = '';
+          }
+        }
+        if(typeof updateStep3CombinedEta === 'function'){
+          updateStep3CombinedEta();
+        }
+      }
+      Array.prototype.forEach.call(boxes, function(cb){
+        if(cb){
+          toggleWrapperState(cb);
+          cb.addEventListener('change', updateServiceEta);
+        }
+      });
+      updateServiceEta();
+    }
+
+    function initTireServiceEtaHandlers(){
+      var etaInput = document.getElementById('estimated_duration_sales');
+      var hint = document.getElementById('cr_tire_services_total_eta_hint');
+      var addonSelector = 'input[type="checkbox"][name="tire_services"]';
+      var boxes = document.querySelectorAll(addonSelector);
+      if(!boxes.length && !etaInput && !hint) return;
+      function toggleWrapperState(cb){
+        var wrapper = cb && cb.closest('.form-check');
+        if(!wrapper || wrapper.dataset.cardClickBound === '1') return;
+        wrapper.dataset.cardClickBound = '1';
+        wrapper.addEventListener('click', function(e){
+          if(e.target === cb || e.target.closest('label')) return;
+          e.preventDefault();
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change', {bubbles: true}));
+        });
+      }
+      function updateTireServicesEta(){
+        var total = 0;
+        Array.prototype.forEach.call(document.querySelectorAll(addonSelector), function(cb){
+          if(cb && cb.checked){
+            var minutes = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+            if(!isNaN(minutes)) total += minutes;
+          }
+        });
+        if(etaInput){
+          etaInput.value = total > 0 ? String(total) : '0';
+        }
+        if(hint){
+          if(total > 0){
+            hint.style.display = '';
+            hint.textContent = 'Estimated total time: ' + total + ' mins';
+          }else{
+            hint.style.display = 'none';
+            hint.textContent = '';
+          }
+        }
+        if(typeof updateStep3CombinedEta === 'function'){
+          updateStep3CombinedEta();
+        }
+      }
+      Array.prototype.forEach.call(boxes, function(cb){
+        if(cb){
+          toggleWrapperState(cb);
+          cb.addEventListener('change', updateTireServicesEta);
+        }
+      });
+      updateTireServicesEta();
+    }
+
+    function initSalesItemAutofill(){
+      var itemEl = document.getElementById('id_item_name');
+      if(!itemEl) return;
+      var brandEl = document.getElementById('id_brand');
+      var rawItems = itemEl.getAttribute('data-items') || '{}';
+      var itemsData = {};
+      try{ itemsData = JSON.parse(rawItems); }catch(e){ itemsData = {}; }
+      itemEl.addEventListener('change', function(){
+        var itemData = itemsData[this.value];
+        if(brandEl){
+          brandEl.value = itemData && itemData.brand ? itemData.brand : '';
+        }
+      });
+      if(itemEl.value && brandEl && itemsData[itemEl.value]){
+        brandEl.value = itemsData[itemEl.value].brand || '';
+      }
+    }
+
+    function initStep3EtaSync(){
+      var serviceEta = document.getElementById('estimated_duration');
+      var salesEta = document.getElementById('estimated_duration_sales');
+      var salesHint = document.getElementById('cr_tire_services_total_eta_hint');
+      var serviceHint = document.getElementById('cr_total_eta_hint');
+      var serviceBoxes = document.querySelectorAll('input[type="checkbox"][name="service_selection"]');
+      var addonBoxes = document.querySelectorAll('input[type="checkbox"][name="tire_services"]');
+      var estimatedInput = document.querySelector('input[name="estimated_duration"]');
+
+      function syncHints(total){
+        if(serviceHint){
+          if(total > 0){
+            serviceHint.style.display = '';
+            serviceHint.textContent = 'Estimated total time: ' + total + ' mins';
+          }else{
+            serviceHint.style.display = 'none';
+            serviceHint.textContent = '';
+          }
+        }
+        if(salesHint){
+          if(total > 0){
+            salesHint.style.display = '';
+            salesHint.textContent = 'Estimated total time: ' + total + ' mins';
+          }else{
+            salesHint.style.display = 'none';
+            salesHint.textContent = '';
+          }
+        }
+      }
+
+      function computeTotal(){
+        var total = 0;
+        Array.prototype.forEach.call(serviceBoxes, function(cb){
+          if(cb && cb.checked){
+            var minutes = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+            if(!isNaN(minutes)) total += minutes;
+          }
+        });
+        Array.prototype.forEach.call(addonBoxes, function(cb){
+          if(cb && cb.checked){
+            var minutes = parseInt(cb.getAttribute('data-minutes') || '0', 10);
+            if(!isNaN(minutes)) total += minutes;
+          }
+        });
+        return total;
+      }
+
+      function updateAll(){
+        var total = computeTotal();
+        if(serviceEta){ serviceEta.value = total > 0 ? String(total) : '0'; }
+        if(salesEta){ salesEta.value = total > 0 ? String(total) : '0'; }
+        if(estimatedInput && estimatedInput !== serviceEta && estimatedInput !== salesEta){
+          estimatedInput.value = total > 0 ? String(total) : '0';
+        }
+        syncHints(total);
+      }
+
+      window.updateStep3CombinedEta = updateAll;
+
+      Array.prototype.forEach.call(serviceBoxes, function(cb){ if(cb){ cb.addEventListener('change', updateAll); } });
+      Array.prototype.forEach.call(addonBoxes, function(cb){ if(cb){ cb.addEventListener('change', updateAll); } });
+      updateAll();
+    }
+
+    initCustomerTypeFields();
+    initIntentCards();
+    initServiceEtaHandlers();
+    initTireServiceEtaHandlers();
+    initSalesItemAutofill();
+    initStep3EtaSync();
 
     // If step4, bind order form interactions similar to order_create
     if(step === 4){

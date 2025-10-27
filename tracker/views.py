@@ -1178,6 +1178,7 @@ def customer_register(request: HttpRequest):
                         'tire_type': (request.POST.get('tire_type') or '').strip(),
                         'description': request.POST.get('description', '').strip(),
                         'tire_services': request.POST.getlist('tire_services') or [],
+                        'estimated_duration': (request.POST.get('estimated_duration') or '').strip(),
                     })
                 elif _intent == 'service':
                     step3_data.update({

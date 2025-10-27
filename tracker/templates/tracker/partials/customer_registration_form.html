@@ -154,20 +154,20 @@
                 <div class="row g-3">
                   {% if service_types %}
                     {% for svc in service_types %}
-                    <div class="col-md-4 mb-2">
-                      <input type="checkbox" id="svc_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" class="visually-hidden service-checkbox" data-minutes="{{ svc.estimated_minutes }}">
-                      <label for="svc_{{ forloop.counter }}" class="card service-offer p-3 cursor-pointer w-100" style="border:1px solid #e9ecef;">
-                        <div class="d-block">{{ svc.name }} <small class="text-muted">({{ svc.estimated_minutes }} mins)</small></div>
-                      </label>
+                    <div class="col-md-4">
+                      <div class="form-check">
+                        <input class="form-check-input service-checkbox" type="checkbox" id="svc_chk_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" data-minutes="{{ svc.estimated_minutes }}" {% if step3.service_selection and svc.name in step3.service_selection %}checked{% endif %}>
+                        <label class="form-check-label" for="svc_chk_{{ forloop.counter }}">{{ svc.name }} <small class="text-muted">({{ svc.estimated_minutes }} mins)</small></label>
+                      </div>
                     </div>
                     {% endfor %}
                   {% else %}
                     {% for svc in service_offers %}
-                    <div class="col-md-4 mb-2">
-                      <input type="checkbox" id="svc_fallback_{{ forloop.counter }}" name="service_selection" value="{{ svc }}" class="visually-hidden">
-                      <label for="svc_fallback_{{ forloop.counter }}" class="card service-offer p-3 cursor-pointer w-100" style="border:1px solid #e9ecef;">
-                        <div class="d-block">{{ svc }}</div>
-                      </label>
+                    <div class="col-md-4">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="svc_fallback_{{ forloop.counter }}" name="service_selection" value="{{ svc }}">
+                        <label class="form-check-label" for="svc_fallback_{{ forloop.counter }}">{{ svc }}</label>
+                      </div>
                     </div>
                     {% endfor %}
                   {% endif %}
@@ -228,8 +228,8 @@
                     {% for ad in sales_addons %}
                     <div class="col-md-3">
                       <div class="form-check">
-                        <input class="form-check-input tire-service-checkbox" type="checkbox" id="cr_ts_{{ forloop.counter }}" name="tire_services" value="{{ ad.name }}" data-minutes="{{ ad.estimated_minutes }}">
-                        <label class="form-check-label" for="cr_ts_{{ forloop.counter }}">{{ ad.name }} <small class="text-muted">({{ ad.estimated_minutes }} mins)</small></label>
+                        <input class="form-check-input tire-service-checkbox" type="checkbox" id="oc_ts_{{ forloop.counter }}" name="tire_services" value="{{ ad.name }}" data-minutes="{{ ad.estimated_minutes }}">
+                        <label class="form-check-label" for="oc_ts_{{ forloop.counter }}">{{ ad.name }} <small class="text-muted">({{ ad.estimated_minutes }} mins)</small></label>
                       </div>
                     </div>
                     {% endfor %}
@@ -506,190 +506,6 @@
     {% endif %}
   </div>
 </form>
-
-<script>
-document.addEventListener('DOMContentLoaded', function(){
-  // Customer type field toggling
-  var customerType = document.getElementById('id_customer_type');
-  function toggleCustomerFields(){
-    if(!customerType) return;
-    var val = customerType.value;
-    var ps = document.getElementById('personal-subtype-field');
-    var org = document.getElementById('organization-field');
-    var tax = document.getElementById('tax-field');
-    
-    if(ps) ps.style.display = 'none';
-    if(org) org.style.display = 'none';
-    if(tax) tax.style.display = 'none';
-    
-    if(val === 'personal' && ps) {
-      ps.style.display = 'block';
-    } else if(['company','government','ngo'].indexOf(val) !== -1) {
-      if(org) org.style.display = 'block';
-      if(tax) tax.style.display = 'block';
-    }
-  }
-  
-  if(customerType){
-    customerType.addEventListener('change', toggleCustomerFields);
-    toggleCustomerFields();
-  }
-
-  // Save customer button
-  var saveBtn = document.getElementById('saveCustomerBtn');
-  if(saveBtn){
-    saveBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      var saveOnly = document.getElementById('saveOnly');
-      if(saveOnly) saveOnly.value = '1';
-      var form = document.getElementById('customerRegistrationForm');
-      form.submit();
-    });
-  }
-
-  // Intent selection
-  window.selectIntent = function(val){
-    try {
-      var intentInput = document.getElementById('registrationIntent');
-      if (intentInput) intentInput.value = val;
-      var radios = document.querySelectorAll('input[name="intent"]');
-      radios.forEach(function(r){ r.checked = (r.value === val); });
-      document.querySelectorAll('.intent-card').forEach(function(card){
-        card.classList.remove('border-primary');
-      });
-      var activeCard = document.querySelector('.intent-card input[value="'+val+'"]');
-      if (activeCard && activeCard.closest('.intent-card')) {
-        activeCard.closest('.intent-card').classList.add('border-primary');
-      }
-    } catch(e) { /* noop */ }
-  };
-
-  // Auto-fill item details for sales
-  var itemEl = document.getElementById('id_item_name');
-  if(itemEl){
-    try {
-      var itemsData = JSON.parse(itemEl.getAttribute('data-items') || '{}');
-      var brandEl = document.getElementById('id_brand');
-      
-      itemEl.addEventListener('change', function(){
-        var itemData = itemsData[this.value];
-        if(itemData && brandEl){
-          brandEl.value = itemData.brand || '';
-        }
-      });
-    } catch(e) { /* noop */ }
-  }
-});
-</script>
-
-<script>
-(function(){
-  // Update service ETA for service selections - EXACT copy from working implementation
-  function updateServiceEta(){
-    var total = 0;
-    document.querySelectorAll('input[type="checkbox"][name="service_selection"]:checked').forEach(function(cb){
-      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-      if(!isNaN(m)) total += m;
-    });
-    var etaInput = document.getElementById('estimated_duration');
-    var hint = document.getElementById('cr_total_eta_hint');
-    if(etaInput){
-      if(total > 0){ etaInput.value = String(total); }
-      if(hint){
-        if(total > 0){
-          hint.style.display = '';
-          hint.textContent = 'Estimated total time: ' + total + ' mins';
-        } else {
-          hint.style.display = 'none';
-          hint.textContent = '';
-        }
-      }
-    }
-  }
-  
-  // Update tire services ETA for sales add-ons - EXACT copy from working implementation
-  function updateTireServicesEta(){
-    var total = 0;
-    document.querySelectorAll('input[type="checkbox"][name="tire_services"]:checked').forEach(function(cb){
-      var m = parseInt(cb.getAttribute('data-minutes') || '0', 10);
-      if(!isNaN(m)) total += m;
-    });
-    var etaInput = document.getElementById('estimated_duration_sales');
-    var hint = document.getElementById('cr_tire_services_total_eta_hint');
-    if(hint){
-      if(total > 0){
-        hint.style.display = '';
-        hint.textContent = 'Estimated total time: ' + total + ' mins';
-      } else {
-        hint.style.display = 'none';
-        hint.textContent = '';
-      }
-    }
-  }
-  
-  document.addEventListener('DOMContentLoaded', function(){
-    // Service selection checkboxes - EXACT copy from working implementation
-    document.querySelectorAll('input[type="checkbox"][name="service_selection"]').forEach(function(cb){
-      cb.addEventListener('change', updateServiceEta);
-    });
-    
-    // Tire service checkboxes - EXACT copy from working implementation
-    document.querySelectorAll('input[type="checkbox"][name="tire_services"]').forEach(function(cb){
-      cb.addEventListener('change', updateTireServicesEta);
-    });
-    
-    // Service offer card click handlers for hidden checkboxes
-    document.querySelectorAll('.service-offer').forEach(function(lbl){
-      lbl.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Find the associated checkbox
-        var checkboxId = lbl.getAttribute('for');
-        var cb = document.getElementById(checkboxId);
-        
-        if (!cb) return;
-        
-        // Toggle checkbox state
-        cb.checked = !cb.checked;
-        
-        // Update visual styling
-        lbl.classList.toggle('border-primary', cb.checked);
-        lbl.classList.toggle('bg-light', cb.checked);
-        
-        // Trigger the change event on the checkbox to update ETA
-        var event = new Event('change', { bubbles: true });
-        cb.dispatchEvent(event);
-      });
-    });
-    
-    // Also handle form-check-label clicks for tire services
-    document.querySelectorAll('.form-check-label').forEach(function(lbl){
-      lbl.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Find the associated checkbox
-        var checkboxId = lbl.getAttribute('for');
-        var cb = document.getElementById(checkboxId);
-        
-        if (!cb) return;
-        
-        // Toggle checkbox state
-        cb.checked = !cb.checked;
-        
-        // Trigger the change event on the checkbox to update ETA
-        var event = new Event('change', { bubbles: true });
-        cb.dispatchEvent(event);
-      });
-    });
-    
-    // Initialize ETAs - EXACT copy from working implementation
-    updateServiceEta();
-    updateTireServicesEta();
-  });
-})();
-</script>
 
 <style>
 .service-offer {

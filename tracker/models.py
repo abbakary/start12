@@ -182,6 +182,9 @@ class Order(models.Model):
     completion_date = models.DateTimeField(blank=True, null=True)
     cancellation_reason = models.TextField(blank=True, null=True)
 
+    # Job card/identification number for quick order lookup (optional)
+    job_card_number = models.CharField(max_length=64, blank=True, null=True, unique=True)
+
     def __str__(self):
         return f"{self.order_number} - {self.customer.full_name}"
 

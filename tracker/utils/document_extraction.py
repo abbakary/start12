@@ -393,7 +393,67 @@ def extract_document(file_path: str) -> Dict[str, Any]:
 
 def match_document_to_records(extracted_data: Dict[str, Any],
                              vehicle_plate: Optional[str] = None,
-                             customer_phone: Optional[str] = None) -> Dict[str, Any]:
-    """Convenience function to match extracted data to existing records"""
+                             customer_phone: Optional[str] = None,
+                             auto_link: bool = True) -> Dict[str, Any]:
+    """
+    Convenience function to match extracted data to existing records
+
+    Args:
+        extracted_data: Extracted data from document
+        vehicle_plate: Vehicle plate from upload form or extracted
+        customer_phone: Customer phone from upload form or extracted
+        auto_link: Whether to automatically link records (default True)
+
+    Returns:
+        Dictionary with matched records and linking suggestions
+    """
+    from tracker.models import Vehicle, Customer, Order
+
+    matches = {
+        'vehicle': None,
+        'customer': None,
+        'orders': [],
+        'confidence': 0,
+        'auto_link_suggested': False
+    }
+
+    if not auto_link:
+        return matches
+
     extractor = DocumentExtractor()
-    return extractor.match_with_existing(extracted_data, vehicle_plate, customer_phone)
+    base_matches = extractor.match_with_existing(extracted_data, vehicle_plate, customer_phone)
+
+    # Enhance matches with additional linking suggestions
+    try:
+        # If we found a vehicle, get recent orders
+        if base_matches.get('vehicle'):
+            vehicle_id = base_matches['vehicle'].get('id')
+            if vehicle_id:
+                orders = Order.objects.filter(
+                    vehicle_id=vehicle_id
+                ).order_by('-created_at')[:3]
+
+                matches['orders'] = [
+                    {
+                        'id': order.id,
+                        'order_number': order.order_number,
+                        'status': order.status,
+                        'created_at': order.created_at.isoformat(),
+                    }
+                    for order in orders
+                ]
+
+        # Suggest auto-linking if confidence is high
+        extracted_phone = extracted_data.get('structured_data', {}).get('phone_numbers', [None])[0]
+        extracted_plate = extracted_data.get('structured_data', {}).get('vehicle_plates', [None])[0]
+
+        if (extracted_phone and customer_phone and extracted_phone in customer_phone) or \
+           (extracted_plate and vehicle_plate and extracted_plate.upper() in vehicle_plate.upper()):
+            matches['auto_link_suggested'] = True
+
+        matches.update(base_matches)
+    except Exception as e:
+        logger.warning(f"Error enhancing matches: {str(e)}")
+        matches.update(base_matches)
+
+    return matches

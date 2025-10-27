@@ -448,16 +448,17 @@ class QuickStartFlow {
     redirectToOrderFlow() {
         const plate = document.getElementById('quickStartPlate').value.trim();
 
-        // Store vehicle plate and start time in session storage
+        // Store vehicle plate and start time in session storage/cookies for retrieval
+        // Note: Using sessionStorage for client-side, but also need to pass via URL or server session
         sessionStorage.setItem('quick_start_plate', plate);
         sessionStorage.setItem('quick_start_time', this.orderStartTime.toISOString());
 
         if (this.foundCustomer) {
             // Redirect to order creation with customer pre-selected
-            window.location.href = `/orders/create/?customer_id=${this.foundCustomer.id}&vehicle_plate=${encodeURIComponent(plate)}`;
+            window.location.href = `/orders/create-with-extraction/?customer_id=${this.foundCustomer.id}&vehicle_plate=${encodeURIComponent(plate)}`;
         } else {
-            // Redirect to customer registration first
-            window.location.href = `/customer/register/?vehicle_plate=${encodeURIComponent(plate)}&from_quick_start=true`;
+            // Redirect to customer registration first with quick start flag
+            window.location.href = `/customer/register-with-extraction/?vehicle_plate=${encodeURIComponent(plate)}&from_quick_start=true`;
         }
     }
 

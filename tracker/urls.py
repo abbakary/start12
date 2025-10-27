@@ -144,6 +144,3 @@ urlpatterns = [
     path("api/documents/search-job-card/", views_documents.search_by_job_card, name="api_search_job_card"),
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
 ]
-
-# Import views_documents to ensure it's available
-from . import views_documents

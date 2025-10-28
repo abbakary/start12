@@ -52,10 +52,19 @@ class DocumentExtractor:
     # Pattern definitions for common fields
     PATTERNS = {
         'phone': r'(?:\+\d{1,3}[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{4}',
-        'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+        'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}',
         'plate': r'[A-Z]{2,3}[-\s]?\d{2,4}[-\s]?[A-Z]{2,3}|\d{2,4}[-\s]?[A-Z]{2,4}',
-        'currency_amount': r'(?:\$|SAR|AED|KWD|QAR|OMR|BHD)?\s*[\d,]+\.?\d*',
+        'currency_amount': r'(?:\$|SAR|AED|KWD|QAR|OMR|BHD|TSH)?\s*[\d,]+\.?\d*',
         'vehicle_make': r'\b(Toyota|Honda|Ford|BMW|Mercedes|Audi|Hyundai|KIA|Nissan|Chevrolet|Volkswagen|Mazda|Lexus|Jeep|Suzuki)\b',
+        # Invoice / header fields
+        'invoice_no': r'\b(?:PI|Invoice|Proforma\s*Invoice)[\s#:\-]*([A-Z0-9-]+)\b',
+        'date': r'\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b',
+        'tax_id': r'(?:Tax\s*ID\s*No\.?|Tax\s*ID)[:\s]*([A-Z0-9-]+)',
+        'vat_reg': r'(?:VAT\s*Reg\.?.*?)[:\s]*([A-Z0-9-]+)',
+        'vat_amount': r'VAT[\s:]*([\d,]+\.?\d{0,2})',
+        'gross_value': r'Gross\s*Value[\s:]*([\d,]+\.?\d{0,2})',
+        'net_value': r'Net\s*Value[\s:]*([\d,]+\.?\d{0,2})',
+        'customer_name': r'(?:Customer\s*Name|Customer)[:\s]*([A-Z0-9 &,.\-\/]*)',
     }
     
     def __init__(self):

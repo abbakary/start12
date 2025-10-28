@@ -338,8 +338,31 @@ class DocumentExtractor:
         return re.sub(r'[^0-9+]', '', phone)
     
     def _clean_plate(self, plate: str) -> str:
-        """Normalize vehicle plate"""
-        return re.sub(r'[^A-Z0-9]', '', plate.upper())
+        """Normalize vehicle plate to uppercase alphanumeric (keep spaces optional)"""
+        try:
+            cleaned = re.sub(r'[^A-Z0-9]', '', plate.upper())
+            # Optionally insert a space between letters and digits for readability (e.g., ABC123 -> ABC 123)
+            m = re.match(r'^([A-Z]+)(\d+)([A-Z]*)$', cleaned)
+            if m:
+                parts = [m.group(1), m.group(2), m.group(3)]
+                return ' '.join([p for p in parts if p])
+            return cleaned
+        except Exception:
+            return plate.upper().strip()
+
+    def _normalize_name(self, name: str) -> str:
+        """Normalize person/company names: title case unless it's clearly an acronym"""
+        if not name:
+            return ''
+        n = name.strip()
+        # If more than 60% of letters are uppercase, assume all-caps and title-case it
+        letters = re.findall(r'[A-Za-z]', n)
+        if letters:
+            upper_count = sum(1 for c in letters if c.isupper())
+            if upper_count / len(letters) > 0.6:
+                return n.title()
+        # Otherwise, just title-case common name formats
+        return n.title()
 
     def _parse_amount_str(self, s: str) -> Optional[str]:
         """Parse a string containing an amount and return normalized numeric string"""

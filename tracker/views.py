@@ -306,6 +306,47 @@ def dashboard(request: HttpRequest):
         # Count of out of stock items
         out_of_stock_count = InventoryItem.objects.filter(quantity=0).count()
         
+        # Revenue aggregation from extracted documents
+        from decimal import Decimal, InvalidOperation
+        from tracker.models import DocumentExtraction
+
+        total_revenue = Decimal('0')
+        revenue_this_month = Decimal('0')
+        try:
+            all_amounts = DocumentExtraction.objects.exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
+            for a in all_amounts:
+                if not a:
+                    continue
+                # Normalize string
+                try:
+                    a_str = str(a)
+                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
+                    if a_str == '':
+                        continue
+                    val = Decimal(a_str)
+                    total_revenue += val
+                except (InvalidOperation, Exception):
+                    continue
+
+            # This month
+            month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            month_amounts = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
+            for a in month_amounts:
+                if not a:
+                    continue
+                try:
+                    a_str = str(a)
+                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
+                    if a_str == '':
+                        continue
+                    val = Decimal(a_str)
+                    revenue_this_month += val
+                except (InvalidOperation, Exception):
+                    continue
+        except Exception:
+            total_revenue = Decimal('0')
+            revenue_this_month = Decimal('0')
+
         metrics = {
             'total_orders': total_orders,
             'completed_orders': completed_orders,  # Add this line to include completed orders count
@@ -319,6 +360,8 @@ def dashboard(request: HttpRequest):
             'new_customers_this_month': new_customers_this_month,
             'pending_inquiries_count': pending_inquiries_count,
             'average_order_value': average_order_value,
+            'total_revenue': total_revenue,
+            'revenue_this_month': revenue_this_month,
             'upcoming_appointments': list(upcoming_appointments.values('id', 'customer__full_name', 'created_at')),
             'top_customers': list(top_customers.values('id', 'full_name', 'order_count', 'phone', 'email', 'total_spent', 'latest_order_date', 'registration_date')),
             'recent_orders': list(orders_qs.select_related("customer").exclude(status="completed").order_by("-created_at").values('id', 'customer__full_name', 'status', 'created_at')[:10]),

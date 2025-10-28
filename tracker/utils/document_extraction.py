@@ -246,6 +246,39 @@ class DocumentExtractor:
             logger.warning(f"Image preprocessing failed: {str(e)}")
             return image
     
+    def _extract_with_pdfplumber(self, file_path: str) -> Tuple[str, list]:
+        """Extract text and table amounts using pdfplumber"""
+        if not HAS_PDFPLUMBER:
+            return '', []
+        composed_text = ''
+        amounts = []
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages[:10]:
+                    try:
+                        text = page.extract_text() or ''
+                        composed_text += text + '\n'
+                    except Exception:
+                        pass
+                    try:
+                        tables = page.extract_tables()
+                        for table in tables:
+                            # Flatten table to text
+                            for row in table:
+                                if row:
+                                    composed_text += ' | '.join([str(c or '') for c in row]) + '\n'
+                                    # Try to find amounts in row
+                                    for cell in row:
+                                        if cell and isinstance(cell, str) and re.search(r'[\d,]+\.?\d*', cell):
+                                            parsed = self._parse_amount_str(cell)
+                                            if parsed is not None:
+                                                amounts.append(parsed)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"pdfplumber extraction error: {e}")
+        return composed_text, amounts
+
     def _parse_text(self, raw_text: str) -> Dict[str, Any]:
         """Parse raw text to extract structured data"""
         structured = {}

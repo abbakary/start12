@@ -499,7 +499,7 @@ class DocumentExtractor:
             for line in lines:
                 line = line.strip()
                 if len(line) > 4 and len(line) < 100 and not any(char.isdigit() for char in line[:10]):
-                    return line
+                    return self._normalize_name(line)
         except Exception:
             pass
         return None

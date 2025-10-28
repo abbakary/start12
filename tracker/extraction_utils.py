@@ -308,11 +308,46 @@ def process_invoice_extraction(document_scan) -> Dict:
                     logger.warning(f"Could not read file as text: {document_scan.file.name}")
                     return {'error': 'Could not extract text from document'}
         
-        # Extract all fields
-        extracted_data = extractor.extract_all(text)
-        extracted_data['raw_text'] = text[:5000]  # Store first 5000 chars
-        
-        return extracted_data
+        # If we used the DocumentExtractor earlier (result variable), merge its structured output
+        merged_result = None
+        try:
+            if 'result' in locals() and isinstance(result, dict) and result.get('success'):
+                doc_struct = result.get('structured_data', {}) or {}
+                # Use InvoiceExtractor to get field-level parsing and service template matching
+                invoice_fields = extractor.extract_all(text)
+
+                # Merge doc_struct into invoice_fields, preferring invoice_fields but filling gaps
+                merged = dict(invoice_fields)
+                for k, v in doc_struct.items():
+                    if not merged.get(k) and v:
+                        merged[k] = v
+                    elif isinstance(v, list) and isinstance(merged.get(k), list):
+                        # combine unique
+                        merged[k] = list(dict.fromkeys(merged.get(k) + v))
+
+                merged['raw_text'] = text[:5000]
+
+                # Attempt to match service template if not already matched
+                service_desc = merged.get('service_description') or merged.get('item_name') or merged.get('description')
+                if service_desc:
+                    match = extractor.match_service_template(service_desc)
+                    if match:
+                        merged['matched_service'] = match[0]
+                        merged['estimated_minutes'] = match[1]
+
+                merged_result = merged
+            else:
+                # No DocumentExtractor result; fall back to InvoiceExtractor output
+                extracted_data = extractor.extract_all(text)
+                extracted_data['raw_text'] = text[:5000]
+                merged_result = extracted_data
+        except Exception as e:
+            logger.warning(f"Error merging extraction results: {e}")
+            extracted_data = extractor.extract_all(text)
+            extracted_data['raw_text'] = text[:5000]
+            merged_result = extracted_data
+
+        return merged_result
     
     except Exception as e:
         logger.error(f"Error processing invoice extraction: {str(e)}")

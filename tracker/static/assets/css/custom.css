@@ -199,6 +199,23 @@ input[type="checkbox"].visually-hidden:checked + label.service-offer {
 }
 
 /* Progress bar container */
+
+/* Start Order button styling for sidebar */
+.start-order-list .sidebar-link {
+    background: #ffffff !important;
+    color: #0f3a6d !important;
+    border-radius: 8px;
+    padding: 10px 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-weight: 600;
+}
+.start-order-list .sidebar-link .badge.bg-light {
+    background: #f8f9fa !important;
+}
+.start-order-list .sidebar-link:hover {
+    background: #ffffff !important;
+    transform: translateY(-2px);
+}
 .progress-container {
     margin-bottom: 1.5rem;
 }

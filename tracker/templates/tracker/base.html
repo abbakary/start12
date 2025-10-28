@@ -172,21 +172,7 @@
                         
                      
                         
-                        <!-- Quick Start Button -->
-                        <li>
-                            <a href="#" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#quickStartModal">
-                                <i class="fa fa-play-circle me-1"></i>
-                                <span class="d-none d-sm-inline">Quick Start</span>
-                            </a>
-                        </li>
 
-                        <!-- Document Upload Button -->
-                        <li>
-                            <a href="#" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#documentCaptureModal">
-                                <i class="fa fa-cloud-upload me-1"></i>
-                                <span class="d-none d-sm-inline">Upload Doc</span>
-                            </a>
-                        </li>
 
                         <!-- Dark Mode Toggle -->
                         <li>
@@ -286,19 +272,6 @@
                                     </div>
                                 </li>
 
-                                <!-- Quick Start (PRIMARY) -->
-                                <li class="sidebar-list">
-                                    <i class="fa fa-thumb-tack"></i>
-                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#quickStartModal">
-                                        <svg class="stroke-icon">
-                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-play-circle"></use>
-                                        </svg>
-                                        <span>
-                                            <strong>Quick Start</strong>
-                                            <span class="badge bg-success ms-2">New Order</span>
-                                        </span>
-                                    </a>
-                                </li>
 
                                 <li class="sidebar-list">
                                     <i class="fa fa-thumb-tack"></i>
@@ -307,6 +280,30 @@
                                             <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-home"></use>
                                         </svg>
                                         <span>Dashboard</span>
+                                    </a>
+                                </li>
+
+                                <!-- Start Order (moved from Dashboard) -->
+                                <li class="sidebar-list start-order-list">
+                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#startOrderModal">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-play-circle"></use>
+                                        </svg>
+                                        <span>
+                                            <strong>Start Order</strong>
+                                            <span class="badge bg-light text-dark ms-2">New</span>
+                                        </span>
+                                    </a>
+                                </li>
+
+                                <!-- Started Orders quick link -->
+                                <li class="sidebar-list">
+                                    <i class="fa fa-clock-o"></i>
+                                    <a class="sidebar-link sidebar-title" href="{% url 'tracker:started_orders_dashboard' %}">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-list"></use>
+                                        </svg>
+                                        <span>Started Orders</span>
                                     </a>
                                 </li>
 

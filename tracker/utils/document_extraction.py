@@ -1,6 +1,9 @@
 import os
 import re
 import json
+import io
+import os
+import shutil
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 import logging
@@ -23,6 +26,16 @@ try:
     from PIL import Image
     import pytesseract
     HAS_OCR = True
+    # Try to locate tesseract binary: env var TESSERACT_CMD or system PATH
+    try:
+        tesseract_cmd = os.environ.get('TESSERACT_CMD') or os.environ.get('TESSERACT_PATH') or shutil.which('tesseract')
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+            logger.info(f"Configured pytesseract.tesseract_cmd = {tesseract_cmd}")
+        else:
+            logger.warning('Tesseract binary not found in PATH or TESSERACT_CMD; OCR may fail unless configured.')
+    except Exception as _e:
+        logger.warning(f"Error configuring pytesseract command: {_e}")
 except ImportError:
     HAS_OCR = False
 
@@ -31,6 +44,12 @@ try:
     HAS_NUMPY = True
 except ImportError:
     HAS_NUMPY = False
+
+try:
+    import pdfplumber
+    HAS_PDFPLUMBER = True
+except Exception:
+    HAS_PDFPLUMBER = False
 
 
 class DocumentExtractor:
@@ -85,6 +104,30 @@ class DocumentExtractor:
 
                 doc.close()
 
+                # If text seems empty, attempt OCR on first pages
+                if (not raw_text or len(raw_text.strip()) < 20) and HAS_OCR and HAS_PYMUPDF:
+                    try:
+                        ocr_text = ""
+                        doc2 = fitz.open(file_path)
+                        pages_to_ocr = min(doc2.page_count, 3)
+                        for pnum in range(pages_to_ocr):
+                            pix = doc2[pnum].get_pixmap(dpi=300)
+                            img_bytes = pix.tobytes("png")
+                            image = Image.open(io.BytesIO(img_bytes))
+                            preprocessed = self._preprocess_image(image)
+                            ocr_text += pytesseract.image_to_string(preprocessed) + "\n"
+                        doc2.close()
+                        if ocr_text.strip():
+                            return {
+                                'success': True,
+                                'raw_text': ocr_text,
+                                'source': 'pdf_ocr',
+                                'pages_processed': min(num_pages, 10),
+                                'structured_data': self._parse_text(ocr_text)
+                            }
+                    except Exception as _e:
+                        logger.warning(f"PDF OCR fallback failed: {_e}")
+
                 return {
                     'success': True,
                     'raw_text': raw_text,
@@ -97,28 +140,61 @@ class DocumentExtractor:
 
         # Fallback to PyPDF2
         if not HAS_PYPDF2:
-            return {
-                'success': False,
-                'error': 'Neither PyMuPDF nor PyPDF2 is installed. Install with: pip install PyMuPDF PyPDF2'
-            }
+            # If PyPDF2 not available, try pdfplumber
+            if not HAS_PDFPLUMBER:
+                return {
+                    'success': False,
+                    'error': 'No suitable PDF extraction library installed. Install PyMuPDF, PyPDF2 or pdfplumber.'
+                }
 
         try:
             raw_text = ""
-            with open(file_path, 'rb') as pdf_file:
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                num_pages = len(pdf_reader.pages)
+            if HAS_PYPDF2:
+                with open(file_path, 'rb') as pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    num_pages = len(pdf_reader.pages)
 
-                for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
-                    page = pdf_reader.pages[page_num]
-                    raw_text += page.extract_text() or ""
+                    for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
+                        page = pdf_reader.pages[page_num]
+                        raw_text += page.extract_text() or ""
 
-            return {
-                'success': True,
-                'raw_text': raw_text,
-                'source': 'pdf_pypdf2',
-                'pages_processed': min(num_pages, 10),
-                'structured_data': self._parse_text(raw_text)
-            }
+                result = {
+                    'success': True,
+                    'raw_text': raw_text,
+                    'source': 'pdf_pypdf2',
+                    'pages_processed': min(num_pages, 10),
+                    'structured_data': self._parse_text(raw_text)
+                }
+                # If amounts not found, try pdfplumber tables
+                if not result['structured_data'].get('amounts') and HAS_PDFPLUMBER:
+                    try:
+                        table_text, table_amounts = self._extract_with_pdfplumber(file_path)
+                        if table_text:
+                            raw_text += '\n' + table_text
+                        if table_amounts:
+                            result['structured_data']['amounts'] = table_amounts
+                            result['structured_data']['table_amounts'] = table_amounts
+                    except Exception as e:
+                        logger.warning(f"pdfplumber fallback failed: {e}")
+
+                return result
+
+            # If PyPDF2 not available but pdfplumber is
+            if HAS_PDFPLUMBER:
+                try:
+                    table_text, table_amounts = self._extract_with_pdfplumber(file_path)
+                    composed_text = table_text or ''
+                    return {
+                        'success': True,
+                        'raw_text': composed_text,
+                        'source': 'pdf_pdfplumber',
+                        'pages_processed': 0,
+                        'structured_data': self._parse_text(composed_text)
+                    }
+                except Exception as e:
+                    logger.error(f"pdfplumber extraction error: {e}")
+                    return {'success': False, 'error': str(e)}
+
         except Exception as e:
             logger.error(f"PDF extraction error: {str(e)}")
             return {
@@ -182,6 +258,39 @@ class DocumentExtractor:
             logger.warning(f"Image preprocessing failed: {str(e)}")
             return image
     
+    def _extract_with_pdfplumber(self, file_path: str) -> Tuple[str, list]:
+        """Extract text and table amounts using pdfplumber"""
+        if not HAS_PDFPLUMBER:
+            return '', []
+        composed_text = ''
+        amounts = []
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages[:10]:
+                    try:
+                        text = page.extract_text() or ''
+                        composed_text += text + '\n'
+                    except Exception:
+                        pass
+                    try:
+                        tables = page.extract_tables()
+                        for table in tables:
+                            # Flatten table to text
+                            for row in table:
+                                if row:
+                                    composed_text += ' | '.join([str(c or '') for c in row]) + '\n'
+                                    # Try to find amounts in row
+                                    for cell in row:
+                                        if cell and isinstance(cell, str) and re.search(r'[\d,]+\.?\d*', cell):
+                                            parsed = self._parse_amount_str(cell)
+                                            if parsed is not None:
+                                                amounts.append(parsed)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"pdfplumber extraction error: {e}")
+        return composed_text, amounts
+
     def _parse_text(self, raw_text: str) -> Dict[str, Any]:
         """Parse raw text to extract structured data"""
         structured = {}
@@ -209,7 +318,15 @@ class DocumentExtractor:
         # Extract currency amounts
         amounts = re.findall(self.PATTERNS['currency_amount'], raw_text)
         if amounts:
-            structured['amounts'] = amounts
+            parsed_amounts = []
+            for a in amounts:
+                parsed = self._parse_amount_str(a)
+                if parsed is not None:
+                    parsed_amounts.append(parsed)
+            if parsed_amounts:
+                structured['amounts'] = parsed_amounts
+            else:
+                structured['amounts'] = []
         
         # Extract common service keywords
         structured['keywords'] = self._extract_keywords(raw_text)
@@ -221,9 +338,46 @@ class DocumentExtractor:
         return re.sub(r'[^0-9+]', '', phone)
     
     def _clean_plate(self, plate: str) -> str:
-        """Normalize vehicle plate"""
-        return re.sub(r'[^A-Z0-9]', '', plate.upper())
-    
+        """Normalize vehicle plate to uppercase alphanumeric (keep spaces optional)"""
+        try:
+            cleaned = re.sub(r'[^A-Z0-9]', '', plate.upper())
+            # Optionally insert a space between letters and digits for readability (e.g., ABC123 -> ABC 123)
+            m = re.match(r'^([A-Z]+)(\d+)([A-Z]*)$', cleaned)
+            if m:
+                parts = [m.group(1), m.group(2), m.group(3)]
+                return ' '.join([p for p in parts if p])
+            return cleaned
+        except Exception:
+            return plate.upper().strip()
+
+    def _normalize_name(self, name: str) -> str:
+        """Normalize person/company names: title case unless it's clearly an acronym"""
+        if not name:
+            return ''
+        n = name.strip()
+        # If more than 60% of letters are uppercase, assume all-caps and title-case it
+        letters = re.findall(r'[A-Za-z]', n)
+        if letters:
+            upper_count = sum(1 for c in letters if c.isupper())
+            if upper_count / len(letters) > 0.6:
+                return n.title()
+        # Otherwise, just title-case common name formats
+        return n.title()
+
+    def _parse_amount_str(self, s: str) -> Optional[str]:
+        """Parse a string containing an amount and return normalized numeric string"""
+        try:
+            # Remove currency symbols and words
+            s_clean = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', s)
+            s_clean = s_clean.replace('(', '-').replace(')', '')
+            # Keep only digits and dot and dash
+            m = re.search(r'-?\d+\.?\d*', s_clean)
+            if m:
+                return m.group(0)
+        except Exception:
+            pass
+        return None
+
     def _extract_keywords(self, raw_text: str) -> list:
         """Extract relevant service/item keywords"""
         service_keywords = [
@@ -318,16 +472,22 @@ class DocumentExtractor:
         """
         structured = extracted_data.get('structured_data', {})
         
+        raw_name = self._extract_name(extracted_data.get('raw_text', ''))
+        extracted_amount_raw = self._get_first(structured.get('amounts', [])) or self._get_first(structured.get('table_amounts', []))
+        parsed_amount = None
+        if extracted_amount_raw:
+            parsed_amount = self._parse_amount_str(str(extracted_amount_raw))
+
         return {
             'raw_text': extracted_data.get('raw_text', '')[:10000],
-            'extracted_customer_name': self._extract_name(extracted_data.get('raw_text', '')),
-            'extracted_customer_phone': self._get_first(structured.get('phone_numbers', [])),
-            'extracted_customer_email': self._get_first(structured.get('emails', [])),
-            'extracted_vehicle_plate': self._get_first(structured.get('vehicle_plates', [])),
-            'extracted_vehicle_make': self._get_first(structured.get('vehicle_makes', [])),
+            'extracted_customer_name': self._normalize_name(raw_name) if raw_name else None,
+            'extracted_customer_phone': self._clean_phone(self._get_first(structured.get('phone_numbers', [])) or ''),
+            'extracted_customer_email': (self._get_first(structured.get('emails', [])) or '').lower() or None,
+            'extracted_vehicle_plate': self._clean_plate(self._get_first(structured.get('vehicle_plates', [])) or ''),
+            'extracted_vehicle_make': (self._get_first(structured.get('vehicle_makes', [])) or '').title() or None,
             'extracted_service_type': self._extract_service_type(structured.get('keywords', [])),
             'extracted_quantity': self._extract_quantity(extracted_data.get('raw_text', '')),
-            'extracted_amount': self._get_first(structured.get('amounts', [])),
+            'extracted_amount': parsed_amount,
             'confidence_overall': self._calculate_confidence(structured),
             'extracted_data_json': structured,
         }
@@ -339,7 +499,7 @@ class DocumentExtractor:
             for line in lines:
                 line = line.strip()
                 if len(line) > 4 and len(line) < 100 and not any(char.isdigit() for char in line[:10]):
-                    return line
+                    return self._normalize_name(line)
         except Exception:
             pass
         return None

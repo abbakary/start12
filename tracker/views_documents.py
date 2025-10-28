@@ -36,9 +36,13 @@ def upload_document(request):
         if uploaded_file.size > 50 * 1024 * 1024:
             return JsonResponse({'success': False, 'error': 'File size exceeds 50MB limit'}, status=400)
         
-        # Validate file type
+        # Validate file type (by MIME or extension)
         allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/bmp', 'image/tiff']
-        if uploaded_file.content_type not in allowed_types:
+        allowed_exts = ['.pdf', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+        content_type_ok = uploaded_file.content_type in allowed_types
+        _, ext = os.path.splitext(uploaded_file.name)
+        ext_ok = ext.lower() in allowed_exts
+        if not (content_type_ok or ext_ok):
             return JsonResponse({'success': False, 'error': 'File type not supported'}, status=400)
         
         user_branch = get_user_branch(request.user)

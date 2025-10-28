@@ -8,19 +8,37 @@ pymysql.install_as_MySQLdb()
 # Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Security key (DO NOT use this in production)
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+# Load .env (optional) - set environment-specific variables here
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / '.env')
+    logger = logging.getLogger(__name__)
+    logger.info(f"Loaded .env from {BASE_DIR / '.env'}")
+except Exception:
+    # dotenv not installed or .env missing; fall back to environment
+    pass
 
-# Debug mode (set to False in production)
-DEBUG = True
+# Security key (DO NOT use the default in production)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here')
+
+# Debug mode (set to False in production). Accept strings like 'True', '1', 'yes'
+DEBUG = str(os.environ.get('DEBUG', 'True')).lower() in ('1', 'true', 'yes')
 
 # Allowed hosts
-ALLOWED_HOSTS = ['*'] if DEBUG else ['yourdomain.com', 'a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev']
+_allowed = os.environ.get('ALLOWED_HOSTS')
+if _allowed:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['*'] if DEBUG else ['yourdomain.com', 'a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev']
 
 # CSRF Trusted Origins (required for CSRF protection on deployed domains)
-CSRF_TRUSTED_ORIGINS = [
-    'https://a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev',
-]
+_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS')
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [c.strip() for c in _csrf_origins.split(',') if c.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        'https://a99e3758fd314a06b25b47e7ff9cefff-dbdd01988b5e48108627748db.fly.dev',
+    ]
 
 # Application definition
 INSTALLED_APPS = [

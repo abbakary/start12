@@ -33,6 +33,12 @@ try:
 except ImportError:
     HAS_NUMPY = False
 
+try:
+    import pdfplumber
+    HAS_PDFPLUMBER = True
+except Exception:
+    HAS_PDFPLUMBER = False
+
 
 class DocumentExtractor:
     """Extract structured data from documents (PDF, images, scanned docs)"""

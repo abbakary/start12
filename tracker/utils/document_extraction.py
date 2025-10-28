@@ -86,6 +86,30 @@ class DocumentExtractor:
 
                 doc.close()
 
+                # If text seems empty, attempt OCR on first pages
+                if (not raw_text or len(raw_text.strip()) < 20) and HAS_OCR and HAS_PYMUPDF:
+                    try:
+                        ocr_text = ""
+                        doc2 = fitz.open(file_path)
+                        pages_to_ocr = min(doc2.page_count, 3)
+                        for pnum in range(pages_to_ocr):
+                            pix = doc2[pnum].get_pixmap(dpi=300)
+                            img_bytes = pix.tobytes("png")
+                            image = Image.open(io.BytesIO(img_bytes))
+                            preprocessed = self._preprocess_image(image)
+                            ocr_text += pytesseract.image_to_string(preprocessed) + "\n"
+                        doc2.close()
+                        if ocr_text.strip():
+                            return {
+                                'success': True,
+                                'raw_text': ocr_text,
+                                'source': 'pdf_ocr',
+                                'pages_processed': min(num_pages, 10),
+                                'structured_data': self._parse_text(ocr_text)
+                            }
+                    except Exception as _e:
+                        logger.warning(f"PDF OCR fallback failed: {_e}")
+
                 return {
                     'success': True,
                     'raw_text': raw_text,

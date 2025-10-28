@@ -72,6 +72,48 @@
 </head>
 
 <body>
+    <!-- connection overlay shown briefly to mimic unreachable notice -->
+    <div class="connection-overlay" id="connectionOverlay" role="alert" aria-live="polite">
+        <div class="connection-overlay__box">
+            <div class="connection-overlay__title">Hmmm… can\'t reach this page</div>
+            <div class="connection-overlay__message">127.0.0.1 is currently unreachable — ERR_CONNECTION_FAILED</div>
+            <div class="connection-overlay__hint">Trying to open the page. This may take a few seconds.
+                <span class="connection-overlay__spinner" aria-hidden="true"></span>
+            </div>
+            <div class="connection-overlay__actions">
+                <button id="connectionOverlayClose" class="btn btn-sm btn-light" type="button">Continue now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            // Show overlay for a short period, allow manual dismiss.
+            var overlay = document.getElementById('connectionOverlay');
+            var btn = document.getElementById('connectionOverlayClose');
+            if(!overlay) return;
+
+            // Auto-hide after 3000ms (3s)
+            var autoHideMs = 3000;
+            var hideTimeout = setTimeout(function(){
+                overlay.classList.add('hidden');
+            }, autoHideMs);
+
+            // If user clicks continue, hide immediately and cancel auto-hide
+            if(btn){
+                btn.addEventListener('click', function(){
+                    clearTimeout(hideTimeout);
+                    overlay.classList.add('hidden');
+                });
+            }
+
+            // Also hide overlay once the main window 'load' event fires (in case assets load slower)
+            window.addEventListener('load', function(){
+                setTimeout(function(){ overlay.classList.add('hidden'); }, 400);
+            });
+        })();
+    </script>
+
     <!-- loader starts-->
     <div class="loader-wrapper">
         <div class="loader">

@@ -318,7 +318,15 @@ class DocumentExtractor:
         # Extract currency amounts
         amounts = re.findall(self.PATTERNS['currency_amount'], raw_text)
         if amounts:
-            structured['amounts'] = amounts
+            parsed_amounts = []
+            for a in amounts:
+                parsed = self._parse_amount_str(a)
+                if parsed is not None:
+                    parsed_amounts.append(parsed)
+            if parsed_amounts:
+                structured['amounts'] = parsed_amounts
+            else:
+                structured['amounts'] = []
         
         # Extract common service keywords
         structured['keywords'] = self._extract_keywords(raw_text)

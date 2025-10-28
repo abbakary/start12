@@ -128,28 +128,61 @@ class DocumentExtractor:
 
         # Fallback to PyPDF2
         if not HAS_PYPDF2:
-            return {
-                'success': False,
-                'error': 'Neither PyMuPDF nor PyPDF2 is installed. Install with: pip install PyMuPDF PyPDF2'
-            }
+            # If PyPDF2 not available, try pdfplumber
+            if not HAS_PDFPLUMBER:
+                return {
+                    'success': False,
+                    'error': 'No suitable PDF extraction library installed. Install PyMuPDF, PyPDF2 or pdfplumber.'
+                }
 
         try:
             raw_text = ""
-            with open(file_path, 'rb') as pdf_file:
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                num_pages = len(pdf_reader.pages)
+            if HAS_PYPDF2:
+                with open(file_path, 'rb') as pdf_file:
+                    pdf_reader = PyPDF2.PdfReader(pdf_file)
+                    num_pages = len(pdf_reader.pages)
 
-                for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
-                    page = pdf_reader.pages[page_num]
-                    raw_text += page.extract_text() or ""
+                    for page_num in range(min(num_pages, 10)):  # Extract first 10 pages
+                        page = pdf_reader.pages[page_num]
+                        raw_text += page.extract_text() or ""
 
-            return {
-                'success': True,
-                'raw_text': raw_text,
-                'source': 'pdf_pypdf2',
-                'pages_processed': min(num_pages, 10),
-                'structured_data': self._parse_text(raw_text)
-            }
+                result = {
+                    'success': True,
+                    'raw_text': raw_text,
+                    'source': 'pdf_pypdf2',
+                    'pages_processed': min(num_pages, 10),
+                    'structured_data': self._parse_text(raw_text)
+                }
+                # If amounts not found, try pdfplumber tables
+                if not result['structured_data'].get('amounts') and HAS_PDFPLUMBER:
+                    try:
+                        table_text, table_amounts = self._extract_with_pdfplumber(file_path)
+                        if table_text:
+                            raw_text += '\n' + table_text
+                        if table_amounts:
+                            result['structured_data']['amounts'] = table_amounts
+                            result['structured_data']['table_amounts'] = table_amounts
+                    except Exception as e:
+                        logger.warning(f"pdfplumber fallback failed: {e}")
+
+                return result
+
+            # If PyPDF2 not available but pdfplumber is
+            if HAS_PDFPLUMBER:
+                try:
+                    table_text, table_amounts = self._extract_with_pdfplumber(file_path)
+                    composed_text = table_text or ''
+                    return {
+                        'success': True,
+                        'raw_text': composed_text,
+                        'source': 'pdf_pdfplumber',
+                        'pages_processed': 0,
+                        'structured_data': self._parse_text(composed_text)
+                    }
+                except Exception as e:
+                    logger.error(f"pdfplumber extraction error: {e}")
+                    return {'success': False, 'error': str(e)}
+
         except Exception as e:
             logger.error(f"PDF extraction error: {str(e)}")
             return {

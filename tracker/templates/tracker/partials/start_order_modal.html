@@ -1,0 +1,145 @@
+<!-- Start Order Modal -->
+<div class="modal fade" id="startOrderModal" tabindex="-1" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-primary border-3">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fa fa-play me-2"></i>Start New Order
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-4">
+          Enter the vehicle plate number to start tracking a new order. You can upload documents or enter details later.
+        </p>
+        <form id="startOrderForm">
+          <div class="mb-3">
+            <label class="form-label fw-medium">Vehicle Plate Number <span class="text-danger">*</span></label>
+            <input type="text" id="plateNumber" class="form-control form-control-lg text-uppercase" 
+                   placeholder="e.g., ABC 123 XYZ" 
+                   required
+                   style="letter-spacing: 0.1em; font-weight: bold;">
+            <small class="text-muted d-block mt-2">
+              <i class="fa fa-info-circle me-1"></i>
+              This will be the primary identifier for the order
+            </small>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-medium">Order Type</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="orderType" id="typeService" value="service" checked>
+              <label class="btn btn-outline-primary" for="typeService">
+                <i class="fa fa-wrench me-2"></i>Service
+              </label>
+              
+              <input type="radio" class="btn-check" name="orderType" id="typeSales" value="sales">
+              <label class="btn btn-outline-primary" for="typeSales">
+                <i class="fa fa-shopping-cart me-2"></i>Sales
+              </label>
+              
+              <input type="radio" class="btn-check" name="orderType" id="typeInquiry" value="inquiry">
+              <label class="btn btn-outline-primary" for="typeInquiry">
+                <i class="fa fa-question-circle me-2"></i>Inquiry
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fa fa-times me-1"></i>Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-lg" onclick="submitStartOrder()" id="startOrderBtn">
+          <i class="fa fa-play me-2"></i>Start Order
+        </button>
+      </div>
+      
+      <!-- Loading State -->
+      <div id="startOrderLoading" style="display: none;" class="modal-body text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted">Creating order...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function submitStartOrder() {
+  const plateNumber = document.getElementById('plateNumber').value.trim().toUpperCase();
+  const orderType = document.querySelector('input[name="orderType"]:checked').value;
+  
+  if (!plateNumber) {
+    alert('Please enter a vehicle plate number');
+    return;
+  }
+  
+  // Show loading state
+  document.getElementById('startOrderForm').parentElement.style.display = 'none';
+  document.getElementById('startOrderLoading').style.display = 'block';
+  document.getElementById('startOrderBtn').disabled = true;
+  
+  // Send API request
+  fetch('{% url "tracker:api_start_order" %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify({
+      plate_number: plateNumber,
+      order_type: orderType
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Redirect to started order detail page
+      window.location.href = `/orders/started/${data.order_id}/`;
+    } else {
+      alert('Error: ' + (data.error || 'Failed to start order'));
+      // Reset UI
+      document.getElementById('startOrderForm').parentElement.style.display = 'block';
+      document.getElementById('startOrderLoading').style.display = 'none';
+      document.getElementById('startOrderBtn').disabled = false;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error starting order. Please try again.');
+    // Reset UI
+    document.getElementById('startOrderForm').parentElement.style.display = 'block';
+    document.getElementById('startOrderLoading').style.display = 'none';
+    document.getElementById('startOrderBtn').disabled = false;
+  });
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Auto-focus plate number input when modal opens
+const modal = document.getElementById('startOrderModal');
+if (modal) {
+  modal.addEventListener('show.bs.modal', function() {
+    document.getElementById('plateNumber').focus();
+    document.getElementById('plateNumber').value = '';
+    document.getElementById('startOrderForm').parentElement.style.display = 'block';
+    document.getElementById('startOrderLoading').style.display = 'none';
+    document.getElementById('startOrderBtn').disabled = false;
+  });
+}
+</script>

@@ -283,6 +283,30 @@
                                     </a>
                                 </li>
 
+                                <!-- Start Order (moved from Dashboard) -->
+                                <li class="sidebar-list start-order-list">
+                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#startOrderModal">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-play-circle"></use>
+                                        </svg>
+                                        <span>
+                                            <strong>Start Order</strong>
+                                            <span class="badge bg-light text-dark ms-2">New</span>
+                                        </span>
+                                    </a>
+                                </li>
+
+                                <!-- Started Orders quick link -->
+                                <li class="sidebar-list">
+                                    <i class="fa fa-clock-o"></i>
+                                    <a class="sidebar-link sidebar-title" href="{% url 'tracker:started_orders_dashboard' %}">
+                                        <svg class="stroke-icon">
+                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-list"></use>
+                                        </svg>
+                                        <span>Started Orders</span>
+                                    </a>
+                                </li>
+
                                 <!-- Document Upload -->
                                 <li class="sidebar-list">
                                     <i class="fa fa-thumb-tack"></i>

@@ -22,22 +22,16 @@ try:
 except ImportError:
     HAS_PYMUPDF = False
 
+# Do not use pytesseract OCR: user prefers PDF/text extraction only.
+# Import PIL.Image if available for image metadata, but disable OCR entirely.
 try:
     from PIL import Image
-    import pytesseract
-    HAS_OCR = True
-    # Try to locate tesseract binary: env var TESSERACT_CMD or system PATH
-    try:
-        tesseract_cmd = os.environ.get('TESSERACT_CMD') or os.environ.get('TESSERACT_PATH') or shutil.which('tesseract')
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-            logger.info(f"Configured pytesseract.tesseract_cmd = {tesseract_cmd}")
-        else:
-            logger.warning('Tesseract binary not found in PATH or TESSERACT_CMD; OCR may fail unless configured.')
-    except Exception as _e:
-        logger.warning(f"Error configuring pytesseract command: {_e}")
-except ImportError:
-    HAS_OCR = False
+    HAS_PIL = True
+except Exception:
+    HAS_PIL = False
+
+# Explicitly disable OCR usage (pytesseract) to avoid accidental OCR attempts
+HAS_OCR = False
 
 try:
     import numpy as np
@@ -104,30 +98,7 @@ class DocumentExtractor:
 
                 doc.close()
 
-                # If text seems empty, attempt OCR on first pages
-                if (not raw_text or len(raw_text.strip()) < 20) and HAS_OCR and HAS_PYMUPDF:
-                    try:
-                        ocr_text = ""
-                        doc2 = fitz.open(file_path)
-                        pages_to_ocr = min(doc2.page_count, 3)
-                        for pnum in range(pages_to_ocr):
-                            pix = doc2[pnum].get_pixmap(dpi=300)
-                            img_bytes = pix.tobytes("png")
-                            image = Image.open(io.BytesIO(img_bytes))
-                            preprocessed = self._preprocess_image(image)
-                            ocr_text += pytesseract.image_to_string(preprocessed) + "\n"
-                        doc2.close()
-                        if ocr_text.strip():
-                            return {
-                                'success': True,
-                                'raw_text': ocr_text,
-                                'source': 'pdf_ocr',
-                                'pages_processed': min(num_pages, 10),
-                                'structured_data': self._parse_text(ocr_text)
-                            }
-                    except Exception as _e:
-                        logger.warning(f"PDF OCR fallback failed: {_e}")
-
+                # Return extracted text from PDF via PyMuPDF (no OCR fallback)
                 return {
                     'success': True,
                     'raw_text': raw_text,
@@ -204,39 +175,30 @@ class DocumentExtractor:
             }
     
     def _extract_from_image(self, file_path: str) -> Dict[str, Any]:
-        """Extract text from image using OCR"""
-        if not HAS_OCR:
+        """Extract text from image files.
+        OCR is intentionally disabled in this deployment. This method will not
+        attempt pytesseract-based OCR. Instead, it returns guidance to the
+        caller to provide a PDF or text-based document for extraction.
+        """
+        try:
+            if HAS_PIL:
+                try:
+                    image = Image.open(file_path)
+                    image_size = image.size
+                except Exception:
+                    image_size = None
+            else:
+                image_size = None
+
             return {
                 'success': False,
-                'error': 'pytesseract is not installed. Please install it: pip install pytesseract'
-            }
-        
-        try:
-            image = Image.open(file_path)
-            
-            # Image preprocessing for better OCR results
-            preprocessed = self._preprocess_image(image)
-            
-            # Extract text using Tesseract
-            raw_text = pytesseract.image_to_string(preprocessed)
-            
-            if not raw_text.strip():
-                raw_text = pytesseract.image_to_string(image)
-            
-            return {
-                'success': True,
-                'raw_text': raw_text,
-                'source': 'image_ocr',
-                'image_size': image.size,
-                'structured_data': self._parse_text(raw_text)
+                'error': 'OCR disabled: image-to-text extraction is not available. Please provide a PDF or text-based document instead.',
+                'source': 'image_no_ocr',
+                'image_size': image_size
             }
         except Exception as e:
-            logger.error(f"Image OCR error: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'source': 'image_ocr'
-            }
+            logger.error(f"Image handling error: {str(e)}")
+            return {'success': False, 'error': str(e), 'source': 'image_no_ocr'}
     
     def _preprocess_image(self, image: 'Image') -> 'Image':
         """Preprocess image for better OCR results"""

@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Order, Customer, Vehicle, Branch, DocumentScan, DocumentExtraction
+from .models import Order, Customer, Vehicle, Branch, DocumentScan, DocumentExtraction, DocumentExtractionItem
 from .utils import get_user_branch
 from .extraction_utils import process_invoice_extraction
 

@@ -8,6 +8,7 @@ from .views_api_fix import api_customer_groups_data_fixed
 from . import branch_metrics as views_branch
 from . import views_documents
 from . import views_quick_start
+from . import views_start_order
 
 app_name = "tracker"
 
@@ -144,6 +145,13 @@ urlpatterns = [
     path("api/documents/verify-extraction/", views_documents.verify_and_update_extraction, name="api_verify_extraction"),
     path("api/documents/search-job-card/", views_documents.search_by_job_card, name="api_search_job_card"),
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
+
+    # Start Order and Started Orders Dashboard
+    path("api/orders/start/", views_start_order.api_start_order, name="api_start_order"),
+    path("orders/started/", views_start_order.started_orders_dashboard, name="started_orders_dashboard"),
+    path("orders/started/<int:order_id>/", views_start_order.started_order_detail, name="started_order_detail"),
+    path("api/orders/apply-extraction/", views_start_order.api_apply_extraction_to_order, name="api_apply_extraction"),
+    path("api/orders/auto-fill-extraction/", views_start_order.api_auto_fill_from_extraction, name="api_auto_fill_extraction"),
 
     # Quick Start Integration
     path("customer/register-with-extraction/", views_quick_start.customer_register_with_extraction, name="customer_register_extraction"),

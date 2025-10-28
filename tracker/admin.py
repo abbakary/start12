@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib import admin
-from .models import Customer, Vehicle, Order, InventoryItem, Branch, ServiceType, ServiceAddon
+from .models import Customer, Vehicle, Order, InventoryItem, Branch, ServiceType, ServiceAddon, ServiceTemplate, InvoicePatternMatcher
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -174,3 +174,65 @@ class BranchAdmin(admin.ModelAdmin):
             if exact_qs.exists():
                 return exact_qs, False
         return super().get_search_results(request, queryset, search_term)
+
+
+@admin.register(ServiceTemplate)
+class ServiceTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "estimated_minutes", "service_type", "is_common", "is_active", "created_at")
+    search_fields = ("name", "keywords", "description")
+    list_filter = ("service_type", "is_active", "is_common", "created_at")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'description', 'service_type'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Keywords for Matching', {
+            'fields': ('keywords',),
+            'description': 'Comma-separated keywords that appear in invoices for this service',
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Estimation', {
+            'fields': ('estimated_minutes',),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_common'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+    )
+
+
+@admin.register(InvoicePatternMatcher)
+class InvoicePatternMatcherAdmin(admin.ModelAdmin):
+    list_display = ("name", "field_type", "priority", "is_active", "is_default", "created_at")
+    search_fields = ("name", "regex_pattern", "field_type", "invoice_format")
+    list_filter = ("field_type", "is_active", "is_default", "priority", "created_at")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ('Pattern Information', {
+            'fields': ('name', 'field_type'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Regex Pattern', {
+            'fields': ('regex_pattern', 'extract_group'),
+            'description': 'Define the regex pattern and which capture group to extract (1-based)',
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Configuration', {
+            'fields': ('invoice_format', 'priority', 'is_default'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Status', {
+            'fields': ('is_active',),
+            'classes': ('wide', 'extrapretty'),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('wide', 'extrapretty'),
+        }),
+    )

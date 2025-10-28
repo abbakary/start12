@@ -509,3 +509,109 @@ class DocumentExtraction(models.Model):
 
     def __str__(self) -> str:
         return f"Extraction for {self.document.file_name}"
+
+
+class ServiceTemplate(models.Model):
+    """
+    Template for common services found in invoices.
+    Used to match extracted service descriptions and auto-assign estimation times.
+    """
+    # Service identification
+    name = models.CharField(max_length=255, unique=True, db_index=True, help_text="Service name (e.g., 'Oil Change', 'Tire Rotation')")
+
+    # Keywords that might appear in invoices for this service
+    keywords = models.TextField(blank=True, null=True, help_text="Comma-separated keywords for matching (e.g., 'oil, oil change, oil service')")
+
+    # Service details
+    description = models.TextField(blank=True, null=True)
+    estimated_minutes = models.PositiveIntegerField(default=30, help_text="Estimated time in minutes")
+    service_type = models.CharField(
+        max_length=16,
+        choices=[('service', 'Service'), ('sales', 'Sales'), ('both', 'Both')],
+        default='service',
+        help_text="Whether this applies to service, sales, or both order types"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_common = models.BooleanField(default=False, help_text="Mark as common/frequently used")
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_common', 'name']
+        indexes = [
+            models.Index(fields=['name'], name='idx_svctemplate_name'),
+            models.Index(fields=['is_active'], name='idx_svctemplate_active'),
+            models.Index(fields=['is_common'], name='idx_svctemplate_common'),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.estimated_minutes}m)"
+
+    def matches_keyword(self, text: str) -> bool:
+        """Check if given text matches any of the service keywords"""
+        if not self.keywords:
+            return False
+        keywords = [k.strip().lower() for k in self.keywords.split(',')]
+        text_lower = text.lower()
+        return any(kw in text_lower for kw in keywords)
+
+
+class InvoicePatternMatcher(models.Model):
+    """
+    Stores regex patterns for extracting specific fields from invoices.
+    Allows flexible matching of various invoice formats.
+    """
+    FIELD_TYPES = [
+        ('plate_number', 'Vehicle Plate Number'),
+        ('customer_name', 'Customer Name'),
+        ('customer_phone', 'Customer Phone'),
+        ('customer_email', 'Customer Email'),
+        ('service_description', 'Service Description'),
+        ('item_name', 'Item Name'),
+        ('quantity', 'Quantity'),
+        ('amount', 'Amount'),
+        ('date', 'Date'),
+        ('reference', 'Reference Number'),
+    ]
+
+    # Pattern identification
+    name = models.CharField(max_length=255, help_text="Name of this pattern (e.g., 'Plate in parentheses')")
+    field_type = models.CharField(max_length=32, choices=FIELD_TYPES, db_index=True)
+
+    # Pattern definition
+    regex_pattern = models.TextField(help_text="Regex pattern to extract the field value")
+    extract_group = models.PositiveIntegerField(default=1, help_text="Which capture group to extract (1-based)")
+
+    # Pattern scope
+    invoice_format = models.CharField(
+        max_length=64,
+        blank=True,
+        null=True,
+        help_text="Invoice format this pattern applies to (e.g., 'standard', 'proforma')"
+    )
+
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False, help_text="Use this pattern by default")
+    priority = models.PositiveIntegerField(default=100, help_text="Lower number = higher priority")
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['priority', '-is_default', 'field_type']
+        indexes = [
+            models.Index(fields=['field_type', 'is_active'], name='idx_pattern_field_active'),
+            models.Index(fields=['priority'], name='idx_pattern_priority'),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['name'], name='uniq_pattern_name'),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_field_type_display()} - {self.name}"

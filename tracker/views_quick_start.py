@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from .models import Order, Customer, Vehicle, Branch
-from .forms import CustomerForm
+from .forms import CustomerStep1Form as CustomerForm
 from .utils import get_user_branch
 
 logger = logging.getLogger(__name__)

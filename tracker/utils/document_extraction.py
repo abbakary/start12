@@ -472,16 +472,22 @@ class DocumentExtractor:
         """
         structured = extracted_data.get('structured_data', {})
         
+        raw_name = self._extract_name(extracted_data.get('raw_text', ''))
+        extracted_amount_raw = self._get_first(structured.get('amounts', [])) or self._get_first(structured.get('table_amounts', []))
+        parsed_amount = None
+        if extracted_amount_raw:
+            parsed_amount = self._parse_amount_str(str(extracted_amount_raw))
+
         return {
             'raw_text': extracted_data.get('raw_text', '')[:10000],
-            'extracted_customer_name': self._extract_name(extracted_data.get('raw_text', '')),
-            'extracted_customer_phone': self._get_first(structured.get('phone_numbers', [])),
-            'extracted_customer_email': self._get_first(structured.get('emails', [])),
-            'extracted_vehicle_plate': self._get_first(structured.get('vehicle_plates', [])),
-            'extracted_vehicle_make': self._get_first(structured.get('vehicle_makes', [])),
+            'extracted_customer_name': self._normalize_name(raw_name) if raw_name else None,
+            'extracted_customer_phone': self._clean_phone(self._get_first(structured.get('phone_numbers', [])) or ''),
+            'extracted_customer_email': (self._get_first(structured.get('emails', [])) or '').lower() or None,
+            'extracted_vehicle_plate': self._clean_plate(self._get_first(structured.get('vehicle_plates', [])) or ''),
+            'extracted_vehicle_make': (self._get_first(structured.get('vehicle_makes', [])) or '').title() or None,
             'extracted_service_type': self._extract_service_type(structured.get('keywords', [])),
             'extracted_quantity': self._extract_quantity(extracted_data.get('raw_text', '')),
-            'extracted_amount': self._get_first(structured.get('amounts', [])) or self._get_first(structured.get('table_amounts', [])),
+            'extracted_amount': parsed_amount,
             'confidence_overall': self._calculate_confidence(structured),
             'extracted_data_json': structured,
         }

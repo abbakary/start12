@@ -26,6 +26,16 @@ try:
     from PIL import Image
     import pytesseract
     HAS_OCR = True
+    # Try to locate tesseract binary: env var TESSERACT_CMD or system PATH
+    try:
+        tesseract_cmd = os.environ.get('TESSERACT_CMD') or os.environ.get('TESSERACT_PATH') or shutil.which('tesseract')
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+            logger.info(f"Configured pytesseract.tesseract_cmd = {tesseract_cmd}")
+        else:
+            logger.warning('Tesseract binary not found in PATH or TESSERACT_CMD; OCR may fail unless configured.')
+    except Exception as _e:
+        logger.warning(f"Error configuring pytesseract command: {_e}")
 except ImportError:
     HAS_OCR = False
 

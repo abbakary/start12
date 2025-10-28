@@ -320,7 +320,21 @@ class DocumentExtractor:
     def _clean_plate(self, plate: str) -> str:
         """Normalize vehicle plate"""
         return re.sub(r'[^A-Z0-9]', '', plate.upper())
-    
+
+    def _parse_amount_str(self, s: str) -> Optional[str]:
+        """Parse a string containing an amount and return normalized numeric string"""
+        try:
+            # Remove currency symbols and words
+            s_clean = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', s)
+            s_clean = s_clean.replace('(', '-').replace(')', '')
+            # Keep only digits and dot and dash
+            m = re.search(r'-?\d+\.?\d*', s_clean)
+            if m:
+                return m.group(0)
+        except Exception:
+            pass
+        return None
+
     def _extract_keywords(self, raw_text: str) -> list:
         """Extract relevant service/item keywords"""
         service_keywords = [

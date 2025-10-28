@@ -438,7 +438,7 @@ class DocumentExtractor:
             'extracted_vehicle_make': self._get_first(structured.get('vehicle_makes', [])),
             'extracted_service_type': self._extract_service_type(structured.get('keywords', [])),
             'extracted_quantity': self._extract_quantity(extracted_data.get('raw_text', '')),
-            'extracted_amount': self._get_first(structured.get('amounts', [])),
+            'extracted_amount': self._get_first(structured.get('amounts', [])) or self._get_first(structured.get('table_amounts', [])),
             'confidence_overall': self._calculate_confidence(structured),
             'extracted_data_json': structured,
         }

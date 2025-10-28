@@ -155,18 +155,27 @@
                   {% if service_types %}
                     {% for svc in service_types %}
                     <div class="col-md-4">
-                      <div class="form-check">
-                        <input class="form-check-input service-checkbox" type="checkbox" id="svc_chk_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" data-minutes="{{ svc.estimated_minutes }}" {% if step3.service_selection and svc.name in step3.service_selection %}checked{% endif %}>
-                        <label class="form-check-label" for="svc_chk_{{ forloop.counter }}">{{ svc.name }} <small class="text-muted">({{ svc.estimated_minutes }} mins)</small></label>
+                      <div class="service-card card p-2 cursor-pointer" data-minutes="{{ svc.estimated_minutes }}" onclick="toggleServiceCheckbox(event, 'svc_chk_{{ forloop.counter }}')">
+                        <div class="card-body p-2 d-flex align-items-center">
+                          <input class="form-check-input service-checkbox me-2" type="checkbox" id="svc_chk_{{ forloop.counter }}" name="service_selection" value="{{ svc.name }}" data-minutes="{{ svc.estimated_minutes }}" {% if step3.service_selection and svc.name in step3.service_selection %}checked{% endif %}>
+                          <div>
+                            <label class="form-check-label mb-0" for="svc_chk_{{ forloop.counter }}">{{ svc.name }}</label>
+                            <div class="small text-muted">{{ svc.estimated_minutes }} mins</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {% endfor %}
                   {% else %}
                     {% for svc in service_offers %}
                     <div class="col-md-4">
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="svc_fallback_{{ forloop.counter }}" name="service_selection" value="{{ svc }}">
-                        <label class="form-check-label" for="svc_fallback_{{ forloop.counter }}">{{ svc }}</label>
+                      <div class="service-card card p-2 cursor-pointer" onclick="toggleServiceCheckbox(event, 'svc_fallback_{{ forloop.counter }}')">
+                        <div class="card-body p-2 d-flex align-items-center">
+                          <input class="form-check-input service-checkbox me-2" type="checkbox" id="svc_fallback_{{ forloop.counter }}" name="service_selection" value="{{ svc }}">
+                          <div>
+                            <label class="form-check-label mb-0" for="svc_fallback_{{ forloop.counter }}">{{ svc }}</label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     {% endfor %}

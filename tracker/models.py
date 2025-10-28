@@ -511,6 +511,28 @@ class DocumentExtraction(models.Model):
         return f"Extraction for {self.document.file_name}"
 
 
+class DocumentExtractionItem(models.Model):
+    """Store individual extracted line items for a document extraction."""
+    extraction = models.ForeignKey(DocumentExtraction, on_delete=models.CASCADE, related_name='items')
+    line_no = models.PositiveIntegerField(null=True, blank=True, help_text='Line number in document (if available)')
+    code = models.CharField(max_length=128, blank=True, null=True, db_index=True)
+    description = models.TextField(blank=True, null=True)
+    qty = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    unit = models.CharField(max_length=16, blank=True, null=True)
+    rate = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        ordering = ['extraction', 'line_no']
+        indexes = [
+            models.Index(fields=['extraction'], name='idx_extr_item_extraction'),
+            models.Index(fields=['code'], name='idx_extr_item_code'),
+        ]
+
+    def __str__(self) -> str:
+        return f"Item {self.code or ''} - {self.description[:50] if self.description else ''}"
+
+
 class ServiceTemplate(models.Model):
     """
     Template for common services found in invoices.

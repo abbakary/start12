@@ -249,28 +249,12 @@ class InvoiceExtractor:
 
 def extract_text_from_image(image_path: str) -> str:
     """
-    Extract text from image file (requires OCR capability).
-    Currently supports basic image-to-text conversion.
-    
-    Args:
-        image_path: Path to image file
-    
-    Returns:
-        Extracted text
+    Image text extraction is disabled (OCR not used). This function will
+    return an empty string and log a warning. If you need text extraction
+    from images, enable an OCR solution or provide PDF/text documents.
     """
-    try:
-        from PIL import Image
-        import pytesseract
-        
-        image = Image.open(image_path)
-        text = pytesseract.image_to_string(image)
-        return text
-    except ImportError:
-        logger.warning("pytesseract not installed - OCR functionality unavailable")
-        return ""
-    except Exception as e:
-        logger.error(f"Error extracting text from image: {str(e)}")
-        return ""
+    logger.warning('OCR disabled: extract_text_from_image called but OCR is not enabled')
+    return ""
 
 
 def process_invoice_extraction(document_scan) -> Dict:
@@ -289,16 +273,40 @@ def process_invoice_extraction(document_scan) -> Dict:
     try:
         # Try to extract text from file
         if document_scan.file.name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
-            text = extract_text_from_image(document_scan.file.path)
+            # OCR disabled — instruct user to upload a PDF or text-based document
+            logger.warning('Image upload detected but OCR is disabled — extraction aborted')
+            return {'error': 'Image extraction disabled. Please upload a PDF or text-based document.'}
         else:
-            # Assume text-based file (PDF might need special handling)
+            # If it's a PDF, attempt binary-based extraction
             try:
-                text = document_scan.file.read().decode('utf-8')
-            except Exception:
-                logger.warning(f"Could not read file as text: {document_scan.file.name}")
-        
-        if not text:
-            return {'error': 'Could not extract text from document'}
+                # Prefer using PDF extraction utilities instead of raw decode
+                from tracker.utils.document_extraction import DocumentExtractor
+                dext = DocumentExtractor()
+                # Save uploaded file to a temporary path and extract
+                tmp_path = None
+                try:
+                    tmp_path = document_scan.file.path
+                except Exception:
+                    # Fallback: write content to a temp file
+                    import tempfile
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.' + document_scan.file.name.split('.')[-1])
+                    tmp.write(document_scan.file.read())
+                    tmp.close()
+                    tmp_path = tmp.name
+
+                result = dext.extract_from_file(tmp_path)
+                if result.get('success'):
+                    text = result.get('raw_text', '')
+                else:
+                    logger.warning(f"Document extraction failed: {result.get('error')}")
+                    return {'error': result.get('error', 'Extraction failed')}
+            except Exception as e:
+                logger.warning(f"Could not extract file using PDF extractor: {e}")
+                try:
+                    text = document_scan.file.read().decode('utf-8')
+                except Exception:
+                    logger.warning(f"Could not read file as text: {document_scan.file.name}")
+                    return {'error': 'Could not extract text from document'}
         
         # Extract all fields
         extracted_data = extractor.extract_all(text)

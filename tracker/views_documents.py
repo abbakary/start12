@@ -45,101 +45,13 @@ def create_order_from_document(request):
 @login_required
 @require_http_methods(["POST"])
 def verify_and_update_extraction(request):
-    """Verify and update extracted data before creating order"""
-    try:
-        data = json.loads(request.body)
-        extraction_id = data.get('extraction_id')
-        
-        extraction = get_object_or_404(DocumentExtraction, id=extraction_id)
-        
-        # Update extraction with verified/corrected data
-        updates = {}
-        
-        if 'customer_name' in data:
-            updates['extracted_customer_name'] = data['customer_name']
-        if 'customer_phone' in data:
-            updates['extracted_customer_phone'] = data['customer_phone']
-        if 'vehicle_plate' in data:
-            updates['extracted_vehicle_plate'] = data['vehicle_plate']
-        if 'vehicle_make' in data:
-            updates['extracted_vehicle_make'] = data['vehicle_make']
-        if 'quantity' in data:
-            updates['extracted_quantity'] = data['quantity']
-        
-        if updates:
-            for key, value in updates.items():
-                setattr(extraction, key, value)
-            extraction.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Extraction data updated successfully'
-        })
-    
-    except Exception as e:
-        logger.error(f"Error verifying extraction: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    return JsonResponse({'success': False, 'error': 'Verification of extraction disabled'}, status=410)
 
 
 @login_required
 @require_http_methods(["POST"])
 def search_by_job_card(request):
-    """Search for order by job card number or vehicle plate"""
-    try:
-        data = json.loads(request.body)
-        job_card = data.get('job_card_number', '').strip()
-        vehicle_plate = data.get('vehicle_plate', '').strip()
-        
-        user_branch = get_user_branch(request.user)
-        
-        results = {
-            'order': None,
-            'customer': None,
-            'vehicle': None,
-        }
-        
-        # Search by job card
-        if job_card:
-            order = Order.objects.filter(
-                job_card_number=job_card,
-                branch=user_branch
-            ).first()
-            
-            if order:
-                results['order'] = {
-                    'id': order.id,
-                    'order_number': order.order_number,
-                    'status': order.status,
-                    'type': order.type,
-                    'created_at': order.created_at.isoformat(),
-                }
-                results['customer'] = {
-                    'id': order.customer.id,
-                    'name': order.customer.full_name,
-                    'phone': order.customer.phone,
-                }
-                if order.vehicle:
-                    results['vehicle'] = {
-                        'id': order.vehicle.id,
-                        'plate': order.vehicle.plate_number,
-                        'make': order.vehicle.make,
-                        'model': order.vehicle.model,
-                    }
-        
-        # Search by vehicle plate
-        elif vehicle_plate:
-            vehicle = Vehicle.objects.filter(
-                plate_number__iexact=vehicle_plate,
-                customer__branch=user_branch
-            ).first()
-            
-            if vehicle:
-                results['vehicle'] = {
-                    'id': vehicle.id,
-                    'plate': vehicle.plate_number,
-                    'make': vehicle.make,
-                    'model': vehicle.model,
-                }
+    return JsonResponse({'success': False, 'error': 'Search by job card disabled'}, status=410)
                 results['customer'] = {
                     'id': vehicle.customer.id,
                     'name': vehicle.customer.full_name,

@@ -143,6 +143,8 @@ urlpatterns = [
 
     # Start Order and Started Orders Dashboard
     path("api/orders/start/", views_start_order.api_start_order, name="api_start_order"),
+    path("api/orders/check-plate/", views_start_order.api_check_plate, name="api_check_plate"),
+    path("api/orders/service-types/", views_start_order.api_service_types, name="api_service_types"),
     path("orders/started/", views_start_order.started_orders_dashboard, name="started_orders_dashboard"),
     path("orders/started/<int:order_id>/", views_start_order.started_order_detail, name="started_order_detail"),
     path("api/orders/apply-extraction/", views_start_order.api_apply_extraction_to_order, name="api_apply_extraction"),

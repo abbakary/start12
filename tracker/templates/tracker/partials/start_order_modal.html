@@ -14,15 +14,15 @@
           <i class="fa fa-info-circle me-2"></i>
           Enter the vehicle plate number to start tracking a new order. You can upload documents or enter details later.
         </p>
-        
+
         <form id="startOrderForm" onsubmit="submitStartOrder(event)">
           <div class="mb-4">
             <label class="form-label fw-bold">Vehicle Plate Number <span class="text-danger">*</span></label>
-            <input 
-              type="text" 
-              id="plateNumber" 
-              class="form-control form-control-lg text-uppercase border-2" 
-              placeholder="e.g., ABC 123 XYZ" 
+            <input
+              type="text"
+              id="plateNumber"
+              class="form-control form-control-lg text-uppercase border-2"
+              placeholder="e.g., ABC 123 XYZ"
               required
               autofocus
               style="letter-spacing: 0.1em; font-weight: bold; font-size: 1.1rem;">
@@ -30,8 +30,9 @@
               <i class="fa fa-car me-1"></i>
               This will be the unique identifier for the order
             </small>
+            <div id="plateCheckResult" class="mt-2"></div>
           </div>
-          
+
           <div class="mb-4">
             <label class="form-label fw-bold">Order Type</label>
             <div class="d-flex gap-2 flex-wrap">
@@ -55,16 +56,23 @@
               </div>
             </div>
           </div>
-          
+
+          <!-- Service selection (populated dynamically) -->
+          <div class="mb-3" id="startOrderServicesWrapper" style="display:none;">
+            <label class="form-label fw-bold">Select Services (optional)</label>
+            <div id="startOrderServices" class="row g-2"></div>
+            <input type="hidden" id="startOrderEstimatedDuration" name="estimated_duration" value="">
+          </div>
+
           <div class="alert alert-light border-start border-4" style="border-color: #667eea !important;">
             <small class="text-muted">
               <strong>Next Steps:</strong><br>
-              After starting, you can immediately upload an invoice to auto-extract customer, vehicle, and service details.
+              After starting, you can immediately upload an invoice to auto-extract customer, vehicle, and service details, or continue manually.
             </small>
           </div>
         </form>
       </div>
-      
+
       <!-- Loading State -->
       <div id="startOrderLoading" style="display: none;" class="modal-body text-center py-5">
         <div class="spinner-border text-primary mb-3" role="status">

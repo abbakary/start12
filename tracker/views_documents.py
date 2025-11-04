@@ -52,34 +52,6 @@ def verify_and_update_extraction(request):
 @require_http_methods(["POST"])
 def search_by_job_card(request):
     return JsonResponse({'success': False, 'error': 'Search by job card disabled'}, status=410)
-                results['customer'] = {
-                    'id': vehicle.customer.id,
-                    'name': vehicle.customer.full_name,
-                    'phone': vehicle.customer.phone,
-                }
-                
-                # Get most recent order
-                recent_order = vehicle.orders.order_by('-created_at').first()
-                if recent_order:
-                    results['order'] = {
-                        'id': recent_order.id,
-                        'order_number': recent_order.order_number,
-                        'status': recent_order.status,
-                        'type': recent_order.type,
-                        'created_at': recent_order.created_at.isoformat(),
-                    }
-        
-        return JsonResponse({
-            'success': True,
-            'found': any(results.values()),
-            'results': results
-        })
-    
-    except Exception as e:
-        logger.error(f"Error searching by job card: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-
 @login_required
 @require_http_methods(["POST"])
 def start_quick_order(request):

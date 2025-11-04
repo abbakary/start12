@@ -26,22 +26,8 @@ def upload_document(request):
 
 
 def _perform_extraction(doc_scan: DocumentScan):
-    """Perform actual document extraction"""
-    # Get file path
-    file_path = doc_scan.file.path
-    
-    # Extract data
-    extractor = DocumentExtractor()
-    extraction_result = extractor.extract_from_file(file_path)
-    
-    if not extraction_result.get('success'):
-        raise Exception(extraction_result.get('error', 'Extraction failed'))
-    
-    # Prepare structured extraction data
-    prep_data = extractor.prepare_extraction_data(extraction_result)
-    extraction_result['extraction_data'] = prep_data
-    
-    return extraction_result
+    """Document extraction has been removed."""
+    raise NotImplementedError('Document extraction removed')
 
 
 @login_required

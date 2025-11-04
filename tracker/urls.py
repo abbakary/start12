@@ -138,12 +138,7 @@ urlpatterns = [
     path("api/customers/check-duplicate/", views.api_check_customer_duplicate, name="api_check_customer_duplicate"),
     path("api/service-distribution/", views.api_service_distribution, name="api_service_distribution"),
 
-    # Document upload and extraction
-    path("api/documents/upload/", views_documents.upload_document, name="api_upload_document"),
-    path("api/documents/<int:doc_id>/extraction/", views_documents.get_document_extraction, name="api_get_document_extraction"),
-    path("api/documents/create-order/", views_documents.create_order_from_document, name="api_create_order_from_document"),
-    path("api/documents/verify-extraction/", views_documents.verify_and_update_extraction, name="api_verify_extraction"),
-    path("api/documents/search-job-card/", views_documents.search_by_job_card, name="api_search_job_card"),
+    # Document-related quick start (keep quick-start integration)
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
 
     # Start Order and Started Orders Dashboard

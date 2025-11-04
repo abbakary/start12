@@ -33,41 +33,7 @@ def _perform_extraction(doc_scan: DocumentScan):
 @login_required
 @require_http_methods(["GET"])
 def get_document_extraction(request, doc_id):
-    """Retrieve extraction data for a document"""
-    try:
-        doc_scan = get_object_or_404(DocumentScan, id=doc_id)
-        extraction = get_object_or_404(DocumentExtraction, document=doc_scan)
-        
-        return JsonResponse({
-            'success': True,
-            'document': {
-                'id': doc_scan.id,
-                'file_name': doc_scan.file_name,
-                'document_type': doc_scan.document_type,
-                'uploaded_at': doc_scan.uploaded_at.isoformat(),
-                'extraction_status': doc_scan.extraction_status,
-            },
-            'extraction': {
-                'id': extraction.id,
-                'customer_name': extraction.extracted_customer_name,
-                'customer_phone': extraction.extracted_customer_phone,
-                'customer_email': extraction.extracted_customer_email,
-                'vehicle_plate': extraction.extracted_vehicle_plate,
-                'vehicle_make': extraction.extracted_vehicle_make,
-                'vehicle_model': extraction.extracted_vehicle_model,
-                'order_description': extraction.extracted_order_description,
-                'service_type': extraction.extracted_service_type,
-                'item_name': extraction.extracted_item_name,
-                'brand': extraction.extracted_brand,
-                'quantity': extraction.extracted_quantity,
-                'amount': extraction.extracted_amount,
-                'confidence': extraction.confidence_overall,
-                'raw_text': extraction.raw_text[:1000] if extraction.raw_text else None,
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error retrieving extraction: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    return JsonResponse({'success': False, 'error': 'Document extraction retrieval disabled'}, status=410)
 
 
 @login_required

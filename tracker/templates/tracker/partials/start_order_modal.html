@@ -103,32 +103,62 @@ function resetStartOrderForm() {
   document.getElementById('startOrderLoading').style.display = 'none';
   document.getElementById('startOrderBtn').disabled = false;
   document.getElementById('startBtnText').textContent = 'Start Order';
+  // reset plate check result
+  const res = document.getElementById('plateCheckResult'); if(res) res.innerHTML = '';
+  // show/hide services wrapper
+  document.getElementById('startOrderServicesWrapper').style.display = 'none';
 }
 
 function submitStartOrder(event) {
   event.preventDefault();
-  
+
   const plateNumber = document.getElementById('plateNumber').value.trim().toUpperCase();
   const orderType = document.querySelector('input[name="orderType"]:checked').value;
-  
+
   if (!plateNumber) {
     alert('Please enter a vehicle plate number');
     document.getElementById('plateNumber').focus();
     return;
   }
-  
+
   // Validate plate format (basic)
   if (plateNumber.length < 5) {
     alert('Please enter a valid plate number');
     return;
   }
-  
+
+  // Gather selected services
+  const svcBoxes = document.querySelectorAll('#startOrderServices input[type="checkbox"]:checked');
+  const services = Array.from(svcBoxes).map(cb => cb.value);
+  const estimatedDuration = document.getElementById('startOrderEstimatedDuration').value || null;
+
+  // Check plate result choices
+  const plateCheckEl = document.getElementById('plateCheckResult');
+  let useExisting = false;
+  let existingCustomerId = null;
+  if (plateCheckEl && plateCheckEl.dataset && plateCheckEl.dataset.existing === 'true') {
+    // If user selected to use existing, the button will have set data-use-existing
+    useExisting = plateCheckEl.dataset.useExisting === 'true';
+    existingCustomerId = plateCheckEl.dataset.existingCustomerId || null;
+  }
+
   // Show loading state
   document.getElementById('startOrderBody').style.display = 'none';
   document.getElementById('startOrderLoading').style.display = 'block';
   document.getElementById('startOrderBtn').disabled = true;
   document.getElementById('startBtnText').textContent = 'Creating...';
-  
+
+  const payload = {
+    plate_number: plateNumber,
+    order_type: orderType,
+    service_selection: services
+  };
+  if (estimatedDuration) payload.estimated_duration = Number(estimatedDuration);
+  if (useExisting && existingCustomerId) {
+    payload.use_existing_customer = true;
+    payload.existing_customer_id = Number(existingCustomerId);
+  }
+
   // Send API request
   fetch('{% url "tracker:api_start_order" %}', {
     method: 'POST',
@@ -136,10 +166,7 @@ function submitStartOrder(event) {
       'Content-Type': 'application/json',
       'X-CSRFToken': getCookie('csrftoken')
     },
-    body: JSON.stringify({
-      plate_number: plateNumber,
-      order_type: orderType
-    })
+    body: JSON.stringify(payload)
   })
   .then(response => response.json())
   .then(data => {
@@ -147,11 +174,18 @@ function submitStartOrder(event) {
       // Close modal and redirect
       const modal = bootstrap.Modal.getInstance(document.getElementById('startOrderModal'));
       modal.hide();
-      
+
       // Redirect after brief delay to show success
       setTimeout(() => {
         window.location.href = `/orders/started/${data.order_id}/`;
       }, 300);
+    } else if (data.existing_customer) {
+      // Backend indicates existing customer found; show selection
+      showPlateExistingNotice(data.existing_customer, data.existing_vehicle);
+      document.getElementById('startOrderBody').style.display = 'block';
+      document.getElementById('startOrderLoading').style.display = 'none';
+      document.getElementById('startOrderBtn').disabled = false;
+      document.getElementById('startBtnText').textContent = 'Start Order';
     } else {
       // Show error
       document.getElementById('startOrderBody').style.display = 'block';
@@ -169,6 +203,99 @@ function submitStartOrder(event) {
     document.getElementById('startBtnText').textContent = 'Start Order';
     alert('Error starting order. Please try again.');
   });
+}
+
+// Plate check helper
+function checkPlateExists() {
+  const plateNumber = document.getElementById('plateNumber').value.trim().toUpperCase();
+  if (!plateNumber || plateNumber.length < 5) return;
+
+  fetch('{% url "tracker:api_check_plate" %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')
+    },
+    body: JSON.stringify({ plate_number: plateNumber })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.found) {
+      showPlateExistingNotice(data.customer, data.vehicle);
+    } else {
+      // show services for manual selection
+      document.getElementById('startOrderServicesWrapper').style.display = 'block';
+      // clear plate check data
+      const res = document.getElementById('plateCheckResult');
+      if(res) { res.innerHTML = ''; res.dataset.existing = 'false'; }
+    }
+  })
+  .catch(err => console.error('Plate check error', err));
+}
+
+// Show UI notice for existing plate
+function showPlateExistingNotice(customer, vehicle) {
+  const container = document.getElementById('plateCheckResult');
+  if (!container) return;
+  container.dataset.existing = 'true';
+  container.innerHTML = `
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Existing Customer Found:</strong> ${customer.full_name} (${customer.phone})<br>
+        <small class="text-muted">Vehicle: ${vehicle.plate} ${vehicle.make || ''} ${vehicle.model || ''}</small>
+      </div>
+      <div>
+        <button type="button" class="btn btn-sm btn-primary me-2" onclick="useExistingCustomer(${customer.id})">Use Existing</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="continueAsNew()">Continue as New</button>
+      </div>
+    </div>
+  `;
+  // hide services until user chooses
+  document.getElementById('startOrderServicesWrapper').style.display = 'none';
+}
+
+function useExistingCustomer(customerId) {
+  const container = document.getElementById('plateCheckResult');
+  container.dataset.useExisting = 'true';
+  container.dataset.existingCustomerId = String(customerId);
+  // show services
+  document.getElementById('startOrderServicesWrapper').style.display = 'block';
+}
+
+function continueAsNew() {
+  const container = document.getElementById('plateCheckResult');
+  container.dataset.useExisting = 'false';
+  container.dataset.existingCustomerId = '';
+  document.getElementById('startOrderServicesWrapper').style.display = 'block';
+}
+
+// Populate services on modal shown
+document.addEventListener('shown.bs.modal', function(e) {
+  if (e.target.id === 'startOrderModal') {
+    resetStartOrderForm();
+    // fetch service types
+    fetch('{% url "tracker:api_service_types" %}', { method: 'GET', headers: { 'X-CSRFToken': getCookie('csrftoken') } })
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data.service_types)) {
+          const wrapper = document.getElementById('startOrderServices');
+          wrapper.innerHTML = '';
+          data.service_types.forEach(svc => {
+            const id = 'svc_' + svc.name.replace(/[^A-Za-z0-9_]/g,'_');
+            const col = document.createElement('div'); col.className = 'col-md-4';
+            col.innerHTML = `<div class="form-check"><input class="form-check-input" type="checkbox" id="${id}" value="${svc.name}"><label class="form-check-label" for="${id}">${svc.name}</label></div>`;
+            wrapper.appendChild(col);
+          });
+          document.getElementById('startOrderServicesWrapper').style.display = 'block';
+        }
+      });
+  }
+});
+
+// Trigger plate check on blur
+const plateInput = document.getElementById('plateNumber');
+if (plateInput) {
+  plateInput.addEventListener('blur', checkPlateExists);
 }
 
 function getCookie(name) {

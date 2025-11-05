@@ -325,7 +325,98 @@ def process_invoice_extraction(document_scan) -> Dict:
                         # combine unique
                         merged[k] = list(dict.fromkeys(merged.get(k) + v))
 
-                merged['raw_text'] = text[:5000]
+                # Normalize and enrich fields
+                merged['raw_text'] = text[:10000]
+
+                # Extract code no if present
+                if not merged.get('code_no'):
+                    m_code = re.search(r'Code\s*No\s*[:\-]?\s*([A-Z0-9-]+)', text, re.IGNORECASE)
+                    if m_code:
+                        merged['code_no'] = m_code.group(1).strip()
+
+                # Extract reference and map to plate if reference contains 'FOR T' or similar
+                if not merged.get('reference'):
+                    m_ref = re.search(r'Reference\s*[:\-]?\s*([A-Z0-9\s-]{3,30})', text, re.IGNORECASE)
+                    if m_ref:
+                        merged['reference'] = m_ref.group(1).strip()
+
+                # Heuristic: if reference contains 'FOR T' or starts with 'FOR ' take trailing token as plate
+                ref_val = merged.get('reference')
+                if ref_val and not merged.get('plate_number'):
+                    m_for = re.search(r'FOR\s+([A-Z0-9\s]+)', ref_val, re.IGNORECASE)
+                    if m_for:
+                        merged['plate_number'] = m_for.group(1).strip()
+
+                # Ensure vehicle plate from doc_struct if available
+                if not merged.get('plate_number') and doc_struct.get('vehicle_plates'):
+                    merged['plate_number'] = doc_struct.get('vehicle_plates')[0]
+
+                # Consolidate items: prefer invoice_fields items, fall back to doc_struct or DocumentExtractor
+                items = []
+                if isinstance(merged.get('items'), list):
+                    items = merged.get('items')
+                elif isinstance(doc_struct.get('items'), list):
+                    items = doc_struct.get('items')
+                else:
+                    try:
+                        # Use DocumentExtractor fallback
+                        from tracker.utils.document_extraction import DocumentExtractor
+                        dext_local = DocumentExtractor()
+                        items = dext_local._extract_items(text)
+                    except Exception:
+                        items = []
+
+                # Normalize item numeric fields
+                normalized_items = []
+                from decimal import Decimal, InvalidOperation
+                for idx, it in enumerate(items, start=1):
+                    code = (it.get('code') or it.get('item_code') or '').strip()
+                    desc = (it.get('description') or it.get('desc') or '').strip()
+                    qty = it.get('qty')
+                    rate = it.get('rate') or it.get('rate_tsh')
+                    value = it.get('value') or it.get('amount') or it.get('value_tsh')
+
+                    def _to_decimal(v):
+                        try:
+                            if v is None:
+                                return None
+                            if isinstance(v, (int, float, Decimal)):
+                                return Decimal(str(v))
+                            s = str(v).replace(',', '').strip()
+                            return Decimal(s)
+                        except (InvalidOperation, Exception):
+                            return None
+
+                    qty_d = _to_decimal(qty)
+                    rate_d = _to_decimal(rate)
+                    value_d = _to_decimal(value)
+
+                    normalized_items.append({
+                        'line_no': idx,
+                        'code': code or None,
+                        'description': desc or None,
+                        'qty': qty_d,
+                        'unit': it.get('unit') or None,
+                        'rate': rate_d,
+                        'value': value_d,
+                    })
+
+                if normalized_items:
+                    merged['items'] = normalized_items
+
+                # Try to extract totals (net, VAT, gross) using regex
+                try:
+                    m_vat = re.search(r'VAT\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_vat:
+                        merged['vat_amount'] = m_vat.group(1).replace(',', '').strip()
+                    m_net = re.search(r'Net\s*Value\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_net:
+                        merged['net_value'] = m_net.group(1).replace(',', '').strip()
+                    m_gross = re.search(r'Gross\s*Value\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_gross:
+                        merged['gross_value'] = m_gross.group(1).replace(',', '').strip()
+                except Exception:
+                    pass
 
                 # Attempt to match service template if not already matched
                 service_desc = merged.get('service_description') or merged.get('item_name') or merged.get('description')

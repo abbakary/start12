@@ -540,10 +540,28 @@ class DocumentCaptureModal {
             return;
         }
 
+        // Determine extracted plate (try multiple keys)
+        const extractedPlateRaw = (this.extractionData && (this.extractionData.plate_number || this.extractionData.vehicle_plate || this.extractionData.extracted_vehicle_plate)) || (document.getElementById('extractedVehiclePlate') && document.getElementById('extractedVehiclePlate').textContent) || '';
+        const orderPlateRaw = (document.getElementById('vehiclePlate') && document.getElementById('vehiclePlate').value) || '';
+
+        const normalize = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const extractedPlate = normalize(extractedPlateRaw);
+        const orderPlate = normalize(orderPlateRaw);
+
+        let applyVehiclePlate = true;
+        if (extractedPlate && orderPlate && extractedPlate !== orderPlate) {
+            // Ask user whether to update the order plate to the invoice plate
+            const msg = `Invoice plate detected: "${extractedPlateRaw}"\nOrder plate: "${orderPlateRaw}"\n\nClick OK to update the order plate to the invoice plate and apply extracted data. Click Cancel to keep the existing order plate and apply other extracted fields.`;
+            applyVehiclePlate = confirm(msg);
+        }
+
+        const fields = ['customer_name', 'customer_phone', 'service_description', 'item_name', 'quantity', 'amount'];
+        if (applyVehiclePlate && extractedPlate) fields.push('vehicle_plate');
+
         const payload = {
             order_id: Number(this.orderId),
             extraction_id: Number(this.extractionId),
-            apply_fields: ['customer_name', 'customer_phone', 'service_description', 'item_name', 'quantity', 'amount']
+            apply_fields: fields
         };
 
         fetch('{% url "tracker:api_apply_extraction" %}', {

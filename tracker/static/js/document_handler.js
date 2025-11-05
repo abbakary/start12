@@ -333,30 +333,46 @@ class DocumentHandler {
     }
 
     /**
-     * Show notification to user
-     * @param {string} message - Notification message
-     * @param {string} type - Notification type (success, error, warning, info)
-     * @param {number} duration - Duration in ms (0 = persistent)
-     */
+    * Show notification to user (simple top-right toast)
+    * @param {string} message - Notification message
+    * @param {string} type - Notification type (success, error, warning, info)
+    * @param {number} duration - Duration in ms (0 = persistent)
+    */
     showNotification(message, type = 'info', duration = 3000) {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
-        alertDiv.role = 'alert';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-
-        const container = document.querySelector('.page-body') || document.body;
-        container.insertBefore(alertDiv, container.firstChild);
-
-        if (duration > 0) {
-            setTimeout(() => {
-                alertDiv.remove();
-            }, duration);
+        const containerClass = 'fusion-toast-container';
+        let container = document.querySelector(`.${containerClass}`);
+        if (!container) {
+            container = document.createElement('div');
+            container.className = containerClass;
+            document.body.appendChild(container);
         }
 
-        return alertDiv;
+        const toast = document.createElement('div');
+        const toastType = type === 'error' ? 'error' : type;
+        toast.className = `fusion-toast fusion-toast--${toastType}`;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+
+        toast.innerHTML = `
+            <div class="fusion-toast__message">${message}</div>
+            <button type="button" class="fusion-toast__close" aria-label="Close">&times;</button>
+        `;
+
+        container.appendChild(toast);
+
+        const closeBtn = toast.querySelector('.fusion-toast__close');
+        const removeToast = () => {
+            toast.classList.add('fusion-toast--hide');
+            toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+        };
+
+        closeBtn.addEventListener('click', removeToast);
+
+        if (duration > 0) {
+            setTimeout(removeToast, duration);
+        }
+
+        return toast;
     }
 
     /**

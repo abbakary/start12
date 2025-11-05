@@ -317,6 +317,7 @@ def dashboard(request: HttpRequest):
         vat_this_month = Decimal('0')
         total_gross = Decimal('0')
         gross_this_month = Decimal('0')
+        revenue_by_branch = {}
         try:
             sums = DocumentExtraction.objects.aggregate(
                 total_net=Sum('net_value'),
@@ -342,6 +343,21 @@ def dashboard(request: HttpRequest):
                 vat_this_month = Decimal(month_sums.get('month_vat'))
             if month_sums.get('month_gross'):
                 gross_this_month = Decimal(month_sums.get('month_gross'))
+
+            # Revenue by branch and currency (aggregate net_value grouped by document.order.branch and currency)
+            rows = DocumentExtraction.objects.select_related('document__order__branch').values_list('net_value', 'extracted_currency', 'document__order__branch__name')
+            for net_val, currency, branch_name in rows:
+                try:
+                    amount = Decimal(net_val) if net_val is not None else Decimal('0')
+                except Exception:
+                    continue
+                cur = (currency or '').strip().upper()
+                b = branch_name or 'Unassigned'
+                if b not in revenue_by_branch:
+                    revenue_by_branch[b] = {}
+                if cur not in revenue_by_branch[b]:
+                    revenue_by_branch[b][cur] = Decimal('0')
+                revenue_by_branch[b][cur] += amount
         except Exception:
             total_revenue = Decimal('0')
             revenue_this_month = Decimal('0')
@@ -349,6 +365,7 @@ def dashboard(request: HttpRequest):
             vat_this_month = Decimal('0')
             total_gross = Decimal('0')
             gross_this_month = Decimal('0')
+            revenue_by_branch = {}
 
         metrics = {
             'total_orders': total_orders,

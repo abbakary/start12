@@ -19,17 +19,19 @@
     <title>{% block title %}POS Tracker{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- Google font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <!-- Local font fallback (works offline) -->
+    <style>
+        /* Prefer Montserrat if available locally or system fallbacks when offline */
+        :root { --app-font-stack: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        html, body { font-family: var(--app-font-stack); }
+    </style>
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="{% static 'assets/css/font-awesome.css' %}">
     <link rel="stylesheet" href="{% static 'fonts/fonts/fontawesome-webfont.woff2' %}">
     <link rel="stylesheet" href="{% static 'fonts/themify.woff/themify.woff' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/icofont.css' %}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/themify-icons@1.0.1/css/themify-icons.css">
+    <link rel="stylesheet" href="{% static 'assets/css/vendors/themify.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/flag-icon.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/feather-icon.css' %}">
     

@@ -154,7 +154,87 @@ def upload_document(request):
                             matches['vehicle'] = {'id': v.id, 'plate': v.plate_number, 'make': v.make, 'model': v.model}
                             matches['customer'] = {'id': v.customer.id, 'name': v.customer.full_name, 'phone': v.customer.phone}
 
-                    return JsonResponse({'success': True, 'document_id': doc_scan.id, 'extraction_id': extraction.id, 'extracted_data': extracted_data, 'matches': matches})
+                    # Auto-apply extraction to order if confidence high and order attached
+                    auto_applied = False
+                    applied_order_id = None
+                    try:
+                        conf = int(extraction.confidence_overall or 0)
+                    except Exception:
+                        conf = 0
+                    AUTO_APPLY_THRESHOLD = 85
+                    if order and conf >= AUTO_APPLY_THRESHOLD:
+                        try:
+                            # Apply extraction fields to order (similar to api_apply_extraction_to_order)
+                            apply_fields = ['customer_name', 'customer_phone', 'service_description', 'item_name', 'brand', 'quantity', 'amount', 'vehicle_plate', 'vehicle_make', 'vehicle_model']
+
+                            # Ensure customer
+                            customer = order.customer
+                            if not customer:
+                                cust_name = extraction.extracted_customer_name or extracted_data.get('customer_name') or f'Customer {order.order_number}'
+                                cust_phone = extraction.extracted_customer_phone or extracted_data.get('customer_phone') or ''
+                                customer = Customer.objects.create(branch=user_branch, full_name=cust_name, phone=cust_phone, customer_type='personal')
+                                order.customer = customer
+                            else:
+                                if extraction.extracted_customer_name and 'customer_name' in apply_fields:
+                                    customer.full_name = extraction.extracted_customer_name
+                                if extraction.extracted_customer_phone and 'customer_phone' in apply_fields:
+                                    customer.phone = extraction.extracted_customer_phone
+                                if extraction.extracted_customer_email and 'customer_email' in apply_fields:
+                                    customer.email = extraction.extracted_customer_email
+                                customer.save()
+
+                            # Vehicle handling
+                            extracted_plate = (extraction.extracted_vehicle_plate or extracted_data.get('plate_number') or extracted_data.get('vehicle_plate') or '').strip()
+                            if extracted_plate:
+                                plate_norm = extracted_plate.upper()
+                                existing_vehicle = Vehicle.objects.filter(plate_number__iexact=plate_norm, customer__branch=user_branch).select_related('customer').first()
+                                if existing_vehicle:
+                                    vehicle_obj = existing_vehicle
+                                    if vehicle_obj.customer != customer:
+                                        vehicle_obj.customer = customer
+                                        vehicle_obj.save()
+                                    order.vehicle = vehicle_obj
+                                else:
+                                    vehicle_obj = Vehicle.objects.create(
+                                        customer=customer,
+                                        plate_number=plate_norm,
+                                        make=(extraction.extracted_vehicle_make or extracted_data.get('vehicle_make') or ''),
+                                        model=(extraction.extracted_vehicle_model or extracted_data.get('vehicle_model') or ''),
+                                        vehicle_type=(extracted_data.get('vehicle_type') or '')
+                                    )
+                                    order.vehicle = vehicle_obj
+
+                            # Order fields
+                            if extraction.extracted_order_description:
+                                order.description = extraction.extracted_order_description
+                            if extraction.extracted_item_name:
+                                order.item_name = extraction.extracted_item_name
+                            if extraction.extracted_brand:
+                                order.brand = extraction.extracted_brand
+                            if extraction.extracted_quantity:
+                                try:
+                                    order.quantity = int(extraction.extracted_quantity)
+                                except Exception:
+                                    pass
+                            # amount -> gross_value or amount
+                            if extraction.extracted_amount:
+                                try:
+                                    from decimal import Decimal
+                                    amt = Decimal(str(extraction.extracted_amount))
+                                    if hasattr(order, 'gross_value'):
+                                        order.gross_value = amt
+                                    elif hasattr(order, 'amount'):
+                                        order.amount = amt
+                                except Exception:
+                                    pass
+
+                            order.save()
+                            auto_applied = True
+                            applied_order_id = order.id
+                        except Exception as e:
+                            logger.warning(f"Auto-apply failed: {e}")
+
+                    return JsonResponse({'success': True, 'document_id': doc_scan.id, 'extraction_id': extraction.id, 'extracted_data': extracted_data, 'matches': matches, 'auto_applied': auto_applied, 'applied_order_id': applied_order_id, 'confidence': extraction.confidence_overall})
                 else:
                     doc_scan.extraction_status = 'failed'
                     doc_scan.extraction_error = extracted_data.get('error')

@@ -292,6 +292,19 @@ def started_order_detail(request, order_id):
                         extracted_data = process_invoice_extraction(doc_scan)
                         
                         if 'error' not in extracted_data:
+                            # Persist extraction with invoice metadata
+                            from decimal import Decimal, InvalidOperation
+                            def _to_decimal_safe(v):
+                                try:
+                                    if v is None:
+                                        return None
+                                    if isinstance(v, (int, float, Decimal)):
+                                        return Decimal(str(v))
+                                    s = str(v).replace(',', '').strip()
+                                    return Decimal(s)
+                                except (InvalidOperation, Exception):
+                                    return None
+
                             extraction = DocumentExtraction.objects.create(
                                 document=doc_scan,
                                 extracted_customer_name=extracted_data.get('customer_name') or extracted_data.get('extracted_customer_name'),
@@ -303,6 +316,11 @@ def started_order_detail(request, order_id):
                                 extracted_brand=extracted_data.get('brand'),
                                 extracted_quantity=extracted_data.get('quantity') or extracted_data.get('extracted_quantity'),
                                 extracted_amount=extracted_data.get('amount') or extracted_data.get('extracted_amount'),
+                                code_no=extracted_data.get('code_no') or extracted_data.get('customer_code'),
+                                reference=extracted_data.get('reference'),
+                                net_value=_to_decimal_safe(extracted_data.get('net_value') or extracted_data.get('net')),
+                                vat_amount=_to_decimal_safe(extracted_data.get('vat_amount') or extracted_data.get('vat')),
+                                gross_value=_to_decimal_safe(extracted_data.get('gross_value') or extracted_data.get('gross')),
                                 extracted_data_json=extracted_data,
                                 confidence_overall=extracted_data.get('confidence_overall', 80),
                             )

@@ -568,7 +568,7 @@ class DocumentCaptureModal {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : (function(){ const c=document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith('csrftoken=')); return c?c.split('=')[1]:''; })())
             },
             body: JSON.stringify(payload)
         })

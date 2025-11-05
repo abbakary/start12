@@ -170,30 +170,32 @@ function submitStartOrder(event) {
   })
   .then(response => response.json())
   .then(data => {
-    if (data.success) {
-      // Close modal and redirect
-      const modal = bootstrap.Modal.getInstance(document.getElementById('startOrderModal'));
-      modal.hide();
-
-      // Redirect after brief delay to show success
-      setTimeout(() => {
-        window.location.href = `/orders/started/${data.order_id}/`;
-      }, 300);
-    } else if (data.existing_customer) {
-      // Backend indicates existing customer found; show selection
+    // If backend found an existing customer for the plate, prompt the user first
+    if (data.existing_customer) {
       showPlateExistingNotice(data.existing_customer, data.existing_vehicle);
       document.getElementById('startOrderBody').style.display = 'block';
       document.getElementById('startOrderLoading').style.display = 'none';
       document.getElementById('startOrderBtn').disabled = false;
       document.getElementById('startBtnText').textContent = 'Start Order';
-    } else {
-      // Show error
-      document.getElementById('startOrderBody').style.display = 'block';
-      document.getElementById('startOrderLoading').style.display = 'none';
-      document.getElementById('startOrderBtn').disabled = false;
-      document.getElementById('startBtnText').textContent = 'Start Order';
-      alert('Error: ' + (data.error || 'Failed to start order'));
+      return;
     }
+
+    // Proceed only when an order was actually created
+    if (data.success && data.order_id) {
+      const modal = bootstrap.Modal.getInstance(document.getElementById('startOrderModal'));
+      modal.hide();
+      setTimeout(() => {
+        window.location.href = `/orders/started/${data.order_id}/`;
+      }, 300);
+      return;
+    }
+
+    // Otherwise, show error and keep the form visible
+    document.getElementById('startOrderBody').style.display = 'block';
+    document.getElementById('startOrderLoading').style.display = 'none';
+    document.getElementById('startOrderBtn').disabled = false;
+    document.getElementById('startBtnText').textContent = 'Start Order';
+    alert('Error: ' + (data.error || 'Failed to start order'));
   })
   .catch(error => {
     console.error('Error:', error);

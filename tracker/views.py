@@ -358,6 +358,12 @@ def dashboard(request: HttpRequest):
                 if cur not in revenue_by_branch[b]:
                     revenue_by_branch[b][cur] = Decimal('0')
                 revenue_by_branch[b][cur] += amount
+
+            # Build TSHS-specific view
+            revenue_by_branch_tsh = {}
+            for b, cols in revenue_by_branch.items():
+                amount = cols.get('TSHS') or cols.get('TSH') or cols.get('TZS') or Decimal('0')
+                revenue_by_branch_tsh[b] = amount
         except Exception:
             total_revenue = Decimal('0')
             revenue_this_month = Decimal('0')
@@ -366,6 +372,7 @@ def dashboard(request: HttpRequest):
             total_gross = Decimal('0')
             gross_this_month = Decimal('0')
             revenue_by_branch = {}
+            revenue_by_branch_tsh = {}
 
         metrics = {
             'total_orders': total_orders,

@@ -315,6 +315,8 @@ class DocumentCaptureModal {
         this.currentTab = 0;
         this.extractionData = null;
         this.documentId = null;
+        this.extractionId = null;
+        this.orderId = null; // when set, uploads attach to this order
         this.setupEventListeners();
     }
 
@@ -339,6 +341,10 @@ class DocumentCaptureModal {
         });
 
         fileInput.addEventListener('change', () => this.updateFileName());
+
+        // Wire up apply-to-order button if present
+        const applyBtn = document.getElementById('applyExtractionToOrderBtn');
+        if (applyBtn) applyBtn.addEventListener('click', () => this.applyExtractionToCurrentOrder());
     }
 
     updateFileName() {
@@ -396,24 +402,31 @@ class DocumentCaptureModal {
 
         this.nextTab();
 
-        // Use DocumentHandler for upload
+        // Use DocumentHandler for upload. Pass orderId if present to attach to existing order
         documentHandler.uploadAndExtract(
             fileInput.files[0],
             vehiclePlate,
             customerPhone,
-            docType
+            docType,
+            this.orderId
         ).then(result => {
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="fa fa-upload me-2"></i>Upload & Extract';
 
             if (result.success) {
                 this.documentId = result.documentId;
+                this.extractionId = result.extractionId || null;
                 this.extractionData = result.extractedData;
                 this.displayExtractionResults({
                     document_id: result.documentId,
                     extracted_data: result.extractedData,
                     matches: result.matches
                 });
+
+                // If this modal was opened to attach to an existing order, expose apply button
+                if (this.orderId && this.extractionId) {
+                    document.getElementById('applyExtractionToOrderBtn').classList.remove('d-none');
+                }
             } else {
                 this.showError(result.error || 'Upload failed');
             }
@@ -515,6 +528,41 @@ class DocumentCaptureModal {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa fa-plus me-2"></i>Create Order from Data';
             }
+        });
+    }
+
+    applyExtractionToCurrentOrder() {
+        if (!this.orderId || !this.extractionId) {
+            alert('No order or extraction available to apply');
+            return;
+        }
+
+        const payload = {
+            order_id: Number(this.orderId),
+            extraction_id: Number(this.extractionId),
+            apply_fields: ['customer_name', 'customer_phone', 'service_description', 'item_name', 'quantity', 'amount']
+        };
+
+        fetch('{% url "tracker:api_apply_extraction" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                documentHandler.showNotification('Extraction applied to order', 'success', 2000);
+                setTimeout(() => location.reload(), 700);
+            } else {
+                documentHandler.showNotification('Error applying extraction: ' + (data.error || ''), 'error', 4000);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            documentHandler.showNotification('Error applying extraction', 'error', 4000);
         });
     }
 }

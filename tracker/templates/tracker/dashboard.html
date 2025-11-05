@@ -299,13 +299,11 @@
             </tr>
           </thead>
           <tbody>
-            {% for branch, cols in revenue_by_branch.items %}
-              {% with amount=cols.TSHS|default:0 %}
+            {% for branch, amount in revenue_by_branch_tsh.items %}
                 <tr>
                   <td>{{ branch }}</td>
                   <td class="text-end">{{ amount|floatformat:2|intcomma }}</td>
                 </tr>
-              {% endwith %}
             {% empty %}
                 <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
             {% endfor %}

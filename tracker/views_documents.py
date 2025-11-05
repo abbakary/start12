@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 
 from .models import DocumentScan, DocumentExtraction, Order, Vehicle, Customer, Branch
 from .utils.document_extraction import DocumentExtractor, extract_document, match_document_to_records
+from .extraction_utils import process_invoice_extraction
 from .utils import get_user_branch
 
 logger = logging.getLogger(__name__)

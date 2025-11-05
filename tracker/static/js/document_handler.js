@@ -18,8 +18,11 @@ class DocumentHandler {
      * Get CSRF token from meta tag or form
      */
     getCSRFToken() {
-        return document.querySelector('meta[name="csrf-token"]').content || 
-               document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        return '';
     }
 
     /**

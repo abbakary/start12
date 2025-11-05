@@ -200,6 +200,88 @@ input[type="checkbox"].visually-hidden:checked + label.service-offer {
 
 /* Progress bar container */
 
+/* Connection overlay shown on first load to simulate unreachable notice */
+.connection-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 58, 109, 0.95); /* keep dark blue feel */
+    color: #ffffff;
+    z-index: 99999;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+    opacity: 1;
+    visibility: visible;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.connection-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.connection-overlay__box {
+    max-width: 720px;
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 28px 32px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.connection-overlay__title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.connection-overlay__message {
+    font-size: 15px;
+    color: #dfefff;
+    margin-bottom: 12px;
+}
+
+.connection-overlay__hint {
+    font-size: 13px;
+    color: #a9c7ff;
+}
+
+.connection-overlay__actions {
+    margin-top: 16px;
+}
+
+.connection-overlay__spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.12);
+    border-top-color: #66a3ff;
+    animation: overlay-spin 1s linear infinite;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+@keyframes overlay-spin { to { transform: rotate(360deg); } }
+
+.progress-bar.completed:hover {
+    box-shadow: 0 0 8px rgba(0, 172, 70, 0.6);
+}
+
+.progress-bar.in-progress:hover {
+    box-shadow: 0 0 8px rgba(255, 174, 26, 0.6);
+}
+
+.progress-bar.pending:hover {
+    box-shadow: 0 0 8px rgba(90, 119, 255, 0.6);
+}
+
+/* Progress bar container */
+
 /* Start Order button styling for sidebar */
 .start-order-list .sidebar-link {
     background: #ffffff !important;
@@ -316,6 +398,63 @@ input[type="checkbox"].visually-hidden:checked + label.service-offer {
     display: flex;
     align-items: center;
 }
+
+/* Simple top-right toast notifications (Fusion) */
+.fusion-toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1060;
+    pointer-events: none;
+}
+
+.fusion-toast {
+    pointer-events: auto;
+    min-width: 220px;
+    max-width: 380px;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    transform: translateX(10px);
+    opacity: 1;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.fusion-toast__message {
+    flex: 1 1 auto;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    color: inherit;
+}
+
+.fusion-toast__close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.5rem;
+    opacity: 0.85;
+}
+
+.fusion-toast--hide {
+    opacity: 0;
+    transform: translateX(12px);
+}
+
+.fusion-toast--success { background: #00AC46; }
+.fusion-toast--error { background: #dc3545; }
+.fusion-toast--info { background: #0d6efd; }
+.fusion-toast--warning { background: #FFAE1A; color: #222; }
 
 .form-check-label i {
     margin-right: 8px;

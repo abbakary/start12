@@ -492,6 +492,13 @@ class DocumentExtraction(models.Model):
     extracted_amount = models.CharField(max_length=32, blank=True, null=True)
     extracted_currency = models.CharField(max_length=16, blank=True, null=True)
 
+    # Invoice metadata
+    code_no = models.CharField(max_length=64, blank=True, null=True, help_text='Customer / code number from invoice (Code No)')
+    reference = models.CharField(max_length=64, blank=True, null=True, help_text='Reference field from invoice (often plate)')
+    net_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    vat_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    gross_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+
     # Confidence scores (0-100)
     confidence_overall = models.PositiveIntegerField(default=0)
     extracted_data_json = models.JSONField(default=dict, blank=True)
@@ -509,6 +516,28 @@ class DocumentExtraction(models.Model):
 
     def __str__(self) -> str:
         return f"Extraction for {self.document.file_name}"
+
+
+class DocumentExtractionItem(models.Model):
+    """Store individual extracted line items for a document extraction."""
+    extraction = models.ForeignKey(DocumentExtraction, on_delete=models.CASCADE, related_name='items')
+    line_no = models.PositiveIntegerField(null=True, blank=True, help_text='Line number in document (if available)')
+    code = models.CharField(max_length=128, blank=True, null=True, db_index=True)
+    description = models.TextField(blank=True, null=True)
+    qty = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    unit = models.CharField(max_length=16, blank=True, null=True)
+    rate = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        ordering = ['extraction', 'line_no']
+        indexes = [
+            models.Index(fields=['extraction'], name='idx_extr_item_extraction'),
+            models.Index(fields=['code'], name='idx_extr_item_code'),
+        ]
+
+    def __str__(self) -> str:
+        return f"Item {self.code or ''} - {self.description[:50] if self.description else ''}"
 
 
 class ServiceTemplate(models.Model):

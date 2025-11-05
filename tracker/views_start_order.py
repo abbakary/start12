@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Order, Customer, Vehicle, Branch, DocumentScan, DocumentExtraction
+from .models import Order, Customer, Vehicle, Branch, DocumentScan, DocumentExtraction, DocumentExtractionItem, ServiceType
 from .utils import get_user_branch
 from .extraction_utils import process_invoice_extraction
 
@@ -23,66 +23,87 @@ logger = logging.getLogger(__name__)
 @require_http_methods(["POST"])
 def api_start_order(request):
     """
-    API endpoint to start a new order with just a vehicle plate number.
-    Creates a minimal order record with started_at timestamp.
-    
-    POST body:
-    {
-        "plate_number": "ABC 123 XYZ",
-        "order_type": "service|sales|inquiry" (optional, defaults to "service")
-    }
-    
-    Response:
-    {
-        "success": true,
-        "order_id": 123,
-        "order_number": "ORD20240101120000XXXX",
-        "plate_number": "ABC 123 XYZ",
-        "started_at": "2024-01-01T12:00:00Z"
-    }
+    Start order endpoint enhanced:
+    Accepts:
+      - plate_number (required)
+      - order_type (service|sales|inquiry)
+      - use_existing_customer (optional boolean)
+      - existing_customer_id (optional int)
+      - service_selection (optional list of service names)
+      - estimated_duration (optional int minutes)
+
+    If plate exists in current branch and use_existing_customer is not provided, the endpoint will return existing_customer info
+    so the frontend can ask the user whether to reuse existing customer or continue as new.
     """
     try:
         data = json.loads(request.body)
         plate_number = (data.get('plate_number') or '').strip().upper()
         order_type = data.get('order_type', 'service')
-        
+        use_existing = data.get('use_existing_customer', False)
+        existing_customer_id = data.get('existing_customer_id')
+        service_selection = data.get('service_selection') or []
+        estimated_duration = data.get('estimated_duration')
+
         if not plate_number:
-            return JsonResponse({
-                'success': False,
-                'error': 'Vehicle plate number is required'
-            }, status=400)
-        
+            return JsonResponse({'success': False, 'error': 'Vehicle plate number is required'}, status=400)
+
         if order_type not in ['service', 'sales', 'inquiry']:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid order type'
-            }, status=400)
-        
+            return JsonResponse({'success': False, 'error': 'Invalid order type'}, status=400)
+
         user_branch = get_user_branch(request.user)
-        
+
+        # Check for existing vehicle/customer in this branch
+        existing_vehicle = Vehicle.objects.filter(plate_number__iexact=plate_number, customer__branch=user_branch).select_related('customer').first()
+        if existing_vehicle and not use_existing and not existing_customer_id:
+            # Inform frontend that a customer exists for this plate
+            return JsonResponse({
+                'success': True,
+                'existing_customer': {
+                    'id': existing_vehicle.customer.id,
+                    'full_name': existing_vehicle.customer.full_name,
+                    'phone': existing_vehicle.customer.phone,
+                },
+                'existing_vehicle': {
+                    'id': existing_vehicle.id,
+                    'plate': existing_vehicle.plate_number,
+                    'make': existing_vehicle.make,
+                    'model': existing_vehicle.model,
+                }
+            }, status=200)
+
         with transaction.atomic():
-            # Create a minimal customer for the order (will be updated later)
-            # Use plate number as temporary identifier
-            customer, _ = Customer.objects.get_or_create(
-                branch=user_branch,
-                phone=f"TEMP_{plate_number}",
-                defaults={
-                    'full_name': f'Pending - {plate_number}',
-                    'customer_type': 'personal',
-                }
-            )
-            
-            # Try to find existing vehicle by plate
-            vehicle, vehicle_created = Vehicle.objects.get_or_create(
-                customer=customer,
-                plate_number=plate_number,
-                defaults={
-                    'vehicle_type': '',
-                    'make': '',
-                    'model': '',
-                }
-            )
-            
+            # Decide which customer to use
+            if use_existing and existing_customer_id:
+                customer = get_object_or_404(Customer, id=existing_customer_id, branch=user_branch)
+                # Try to find a matching vehicle record for this plate under that customer
+                vehicle = Vehicle.objects.filter(plate_number__iexact=plate_number, customer=customer).first()
+                if not vehicle:
+                    vehicle = Vehicle.objects.create(customer=customer, plate_number=plate_number)
+            else:
+                # Create temporary customer record for this branch
+                customer, _ = Customer.objects.get_or_create(
+                    branch=user_branch,
+                    phone=f"TEMP_{plate_number}",
+                    defaults={'full_name': f'Pending - {plate_number}', 'customer_type': 'personal'}
+                )
+                vehicle, _ = Vehicle.objects.get_or_create(customer=customer, plate_number=plate_number,
+                                                            defaults={'vehicle_type':'', 'make':'', 'model':''})
+
+            # Calculate estimated duration from selected services if provided
+            try:
+                if service_selection and order_type == 'service':
+                    svc_objs = ServiceType.objects.filter(name__in=service_selection, is_active=True)
+                    total_minutes = sum(int(s.estimated_minutes or 0) for s in svc_objs)
+                    if total_minutes:
+                        estimated_duration = total_minutes
+            except Exception:
+                pass
+
+            # Build description
+            desc = f"Order started for {plate_number}"
+            if service_selection:
+                desc += ": " + ", ".join(service_selection)
+
             # Create the order
             order = Order.objects.create(
                 customer=customer,
@@ -91,30 +112,52 @@ def api_start_order(request):
                 type=order_type,
                 status='created',
                 started_at=timezone.now(),
-                description=f"Order started for {plate_number}",
+                description=desc,
                 priority='medium',
+                estimated_duration=estimated_duration if estimated_duration else None,
             )
-        
-        return JsonResponse({
-            'success': True,
-            'order_id': order.id,
-            'order_number': order.order_number,
-            'plate_number': plate_number,
-            'started_at': order.started_at.isoformat(),
-            'message': 'Order started successfully. You can now continue with customer registration or document upload.'
-        }, status=201)
-    
+
+        return JsonResponse({'success': True, 'order_id': order.id, 'order_number': order.order_number, 'plate_number': plate_number, 'started_at': order.started_at.isoformat()}, status=201)
+
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         logger.error(f"Error starting order: {str(e)}")
-        return JsonResponse({
-            'success': False,
-            'error': f'Server error: {str(e)}'
-        }, status=500)
+        return JsonResponse({'success': False, 'error': f'Server error: {str(e)}'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_check_plate(request):
+    """Check if a plate number exists under the current branch and return customer/vehicle info."""
+    try:
+        data = json.loads(request.body)
+        plate_number = (data.get('plate_number') or '').strip().upper()
+        if not plate_number:
+            return JsonResponse({'found': False})
+
+        user_branch = get_user_branch(request.user)
+        vehicle = Vehicle.objects.filter(plate_number__iexact=plate_number, customer__branch=user_branch).select_related('customer').first()
+        if not vehicle:
+            return JsonResponse({'found': False})
+
+        return JsonResponse({'found': True, 'customer': {'id': vehicle.customer.id, 'full_name': vehicle.customer.full_name, 'phone': vehicle.customer.phone}, 'vehicle': {'id': vehicle.id, 'plate': vehicle.plate_number, 'make': vehicle.make, 'model': vehicle.model}})
+    except Exception as e:
+        logger.error(f"Error checking plate: {e}")
+        return JsonResponse({'found': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_service_types(request):
+    """Return list of active service types for UI checkboxes."""
+    try:
+        svc_qs = ServiceType.objects.filter(is_active=True).order_by('name')
+        service_types = [{'name': s.name, 'estimated_minutes': s.estimated_minutes or 0} for s in svc_qs]
+        return JsonResponse({'service_types': service_types})
+    except Exception as e:
+        logger.error(f"Error fetching service types: {e}")
+        return JsonResponse({'service_types': []}, status=500)
 
 
 @login_required
@@ -249,27 +292,86 @@ def started_order_detail(request, order_id):
                         extracted_data = process_invoice_extraction(doc_scan)
                         
                         if 'error' not in extracted_data:
+                            # Persist extraction with invoice metadata
+                            from decimal import Decimal, InvalidOperation
+                            def _to_decimal_safe(v):
+                                try:
+                                    if v is None:
+                                        return None
+                                    if isinstance(v, (int, float, Decimal)):
+                                        return Decimal(str(v))
+                                    s = str(v).replace(',', '').strip()
+                                    return Decimal(s)
+                                except (InvalidOperation, Exception):
+                                    return None
+
                             extraction = DocumentExtraction.objects.create(
                                 document=doc_scan,
-                                extracted_customer_name=extracted_data.get('customer_name'),
-                                extracted_customer_phone=extracted_data.get('customer_phone'),
-                                extracted_customer_email=extracted_data.get('customer_email'),
-                                extracted_vehicle_plate=extracted_data.get('plate_number'),
-                                extracted_order_description=extracted_data.get('service_description'),
+                                extracted_customer_name=extracted_data.get('customer_name') or extracted_data.get('extracted_customer_name'),
+                                extracted_customer_phone=extracted_data.get('customer_phone') or extracted_data.get('extracted_customer_phone'),
+                                extracted_customer_email=extracted_data.get('customer_email') or extracted_data.get('extracted_customer_email'),
+                                extracted_vehicle_plate=extracted_data.get('plate_number') or extracted_data.get('extracted_vehicle_plate'),
+                                extracted_order_description=extracted_data.get('service_description') or extracted_data.get('extracted_order_description'),
                                 extracted_item_name=extracted_data.get('item_name'),
                                 extracted_brand=extracted_data.get('brand'),
-                                extracted_quantity=extracted_data.get('quantity'),
-                                extracted_amount=extracted_data.get('amount'),
+                                extracted_quantity=extracted_data.get('quantity') or extracted_data.get('extracted_quantity'),
+                                extracted_amount=extracted_data.get('amount') or extracted_data.get('extracted_amount'),
+                                code_no=extracted_data.get('code_no') or extracted_data.get('customer_code'),
+                                reference=extracted_data.get('reference'),
+                                net_value=_to_decimal_safe(extracted_data.get('net_value') or extracted_data.get('net')),
+                                vat_amount=_to_decimal_safe(extracted_data.get('vat_amount') or extracted_data.get('vat')),
+                                gross_value=_to_decimal_safe(extracted_data.get('gross_value') or extracted_data.get('gross')),
                                 extracted_data_json=extracted_data,
-                                confidence_overall=80,
+                                confidence_overall=extracted_data.get('confidence_overall', 80),
                             )
-                            
+
+                            # Persist line items if present
+                            try:
+                                items = extracted_data.get('items') or extracted_data.get('structured_data', {}).get('items')
+                                if items and isinstance(items, list):
+                                    from decimal import Decimal
+                                    for idx, it in enumerate(items, start=1):
+                                        code = it.get('code') or it.get('item_code') or None
+                                        desc = it.get('description') or it.get('desc') or it.get('description_full') or str(it.get('description') or '')
+                                        qty = it.get('qty') or it.get('quantity')
+                                        unit = it.get('unit') or it.get('type')
+                                        rate = it.get('rate')
+                                        value = it.get('value')
+                                        # Normalize numeric fields
+                                        def _to_decimal(v):
+                                            try:
+                                                if v is None:
+                                                    return None
+                                                if isinstance(v, (int, float, Decimal)):
+                                                    return Decimal(str(v))
+                                                v_clean = str(v).replace(',', '').strip()
+                                                return Decimal(v_clean)
+                                            except Exception:
+                                                return None
+
+                                        qty_d = _to_decimal(qty)
+                                        rate_d = _to_decimal(rate)
+                                        value_d = _to_decimal(value)
+
+                                        DocumentExtractionItem.objects.create(
+                                            extraction=extraction,
+                                            line_no=idx,
+                                            code=code,
+                                            description=desc,
+                                            qty=qty_d,
+                                            unit=unit,
+                                            rate=rate_d,
+                                            value=value_d,
+                                        )
+                            except Exception as e:
+                                logger.warning(f"Failed to save extracted items: {e}")
+
                             doc_scan.extraction_status = 'completed'
                             doc_scan.extracted_at = timezone.now()
                         else:
                             doc_scan.extraction_status = 'failed'
                             doc_scan.extraction_error = extracted_data.get('error')
-                        
+
                         doc_scan.save()
                     except Exception as e:
                         doc_scan.extraction_status = 'failed'

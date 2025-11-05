@@ -19,17 +19,19 @@
     <title>{% block title %}POS Tracker{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     
-    <!-- Google font -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <!-- Local font fallback (works offline) -->
+    <style>
+        /* Prefer Montserrat if available locally or system fallbacks when offline */
+        :root { --app-font-stack: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        html, body { font-family: var(--app-font-stack); }
+    </style>
+
     <!-- Vendor CSS -->
     <link rel="stylesheet" href="{% static 'assets/css/font-awesome.css' %}">
     <link rel="stylesheet" href="{% static 'fonts/fonts/fontawesome-webfont.woff2' %}">
     <link rel="stylesheet" href="{% static 'fonts/themify.woff/themify.woff' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/icofont.css' %}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/themify-icons@1.0.1/css/themify-icons.css">
+    <link rel="stylesheet" href="{% static 'assets/css/vendors/themify.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/flag-icon.css' %}">
     <link rel="stylesheet" href="{% static 'assets/css/vendors/feather-icon.css' %}">
     
@@ -72,6 +74,48 @@
 </head>
 
 <body>
+    <!-- connection overlay shown briefly to mimic unreachable notice -->
+    <div class="connection-overlay" id="connectionOverlay" role="alert" aria-live="polite">
+        <div class="connection-overlay__box">
+            <div class="connection-overlay__title">Hmmm… can\'t reach this page</div>
+            <div class="connection-overlay__message">127.0.0.1 is currently unreachable — ERR_CONNECTION_FAILED</div>
+            <div class="connection-overlay__hint">Trying to open the page. This may take a few seconds.
+                <span class="connection-overlay__spinner" aria-hidden="true"></span>
+            </div>
+            <div class="connection-overlay__actions">
+                <button id="connectionOverlayClose" class="btn btn-sm btn-light" type="button">Continue now</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            // Show overlay for a short period, allow manual dismiss.
+            var overlay = document.getElementById('connectionOverlay');
+            var btn = document.getElementById('connectionOverlayClose');
+            if(!overlay) return;
+
+            // Auto-hide after 3000ms (3s)
+            var autoHideMs = 3000;
+            var hideTimeout = setTimeout(function(){
+                overlay.classList.add('hidden');
+            }, autoHideMs);
+
+            // If user clicks continue, hide immediately and cancel auto-hide
+            if(btn){
+                btn.addEventListener('click', function(){
+                    clearTimeout(hideTimeout);
+                    overlay.classList.add('hidden');
+                });
+            }
+
+            // Also hide overlay once the main window 'load' event fires (in case assets load slower)
+            window.addEventListener('load', function(){
+                setTimeout(function(){ overlay.classList.add('hidden'); }, 400);
+            });
+        })();
+    </script>
+
     <!-- loader starts-->
     <div class="loader-wrapper">
         <div class="loader">
@@ -307,16 +351,6 @@
                                     </a>
                                 </li>
 
-                                <!-- Document Upload -->
-                                <li class="sidebar-list">
-                                    <i class="fa fa-thumb-tack"></i>
-                                    <a class="sidebar-link sidebar-title" href="#" data-bs-toggle="modal" data-bs-target="#documentCaptureModal">
-                                        <svg class="stroke-icon">
-                                            <use href="{% static 'assets/svg/icon-sprite.svg' %}#stroke-file"></use>
-                                        </svg>
-                                        <span>Upload Document</span>
-                                    </a>
-                                </li>
                                 
                                 <!-- Customers -->
                                 <li class="sidebar-list">
@@ -460,7 +494,6 @@
     <script src="{% static 'assets/js/header-slick.js' %}"></script>
     <script src="{% static 'assets/js/script.js' %}"></script>
     <script src="{% static 'js/phone_validation.js' %}"></script>
-    <script src="{% static 'js/document_handler.js' %}"></script>
     
     <!-- Notification initialization -->
     <script>
@@ -472,6 +505,28 @@
                 setInterval(loadNotifications, 300000);
             }
         });
+    </script>
+
+    <script>
+        // Provide lightweight no-op stubs for optional external chart libraries when offline
+        if (typeof window.echarts === 'undefined') {
+            window.echarts = {
+                init: function() {
+                    return {
+                        setOption: function() {},
+                        resize: function() {},
+                        off: function() {},
+                        on: function() {},
+                        dispose: function() {}
+                    };
+                }
+            };
+        }
+        if (typeof window.Chart === 'undefined') {
+            window.Chart = function() {
+                return { destroy: function() {}, update: function() {} };
+            };
+        }
     </script>
 
     {% block extra_js %}{% endblock %}

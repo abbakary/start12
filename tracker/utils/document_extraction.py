@@ -22,22 +22,16 @@ try:
 except ImportError:
     HAS_PYMUPDF = False
 
+# Do not use pytesseract OCR: user prefers PDF/text extraction only.
+# Import PIL.Image if available for image metadata, but disable OCR entirely.
 try:
     from PIL import Image
-    import pytesseract
-    HAS_OCR = True
-    # Try to locate tesseract binary: env var TESSERACT_CMD or system PATH
-    try:
-        tesseract_cmd = os.environ.get('TESSERACT_CMD') or os.environ.get('TESSERACT_PATH') or shutil.which('tesseract')
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-            logger.info(f"Configured pytesseract.tesseract_cmd = {tesseract_cmd}")
-        else:
-            logger.warning('Tesseract binary not found in PATH or TESSERACT_CMD; OCR may fail unless configured.')
-    except Exception as _e:
-        logger.warning(f"Error configuring pytesseract command: {_e}")
-except ImportError:
-    HAS_OCR = False
+    HAS_PIL = True
+except Exception:
+    HAS_PIL = False
+
+# Explicitly disable OCR usage (pytesseract) to avoid accidental OCR attempts
+HAS_OCR = False
 
 try:
     import numpy as np
@@ -58,10 +52,19 @@ class DocumentExtractor:
     # Pattern definitions for common fields
     PATTERNS = {
         'phone': r'(?:\+\d{1,3}[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{4}',
-        'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+        'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}',
         'plate': r'[A-Z]{2,3}[-\s]?\d{2,4}[-\s]?[A-Z]{2,3}|\d{2,4}[-\s]?[A-Z]{2,4}',
-        'currency_amount': r'(?:\$|SAR|AED|KWD|QAR|OMR|BHD)?\s*[\d,]+\.?\d*',
+        'currency_amount': r'(?:\$|SAR|AED|KWD|QAR|OMR|BHD|TSH)?\s*[\d,]+\.?\d*',
         'vehicle_make': r'\b(Toyota|Honda|Ford|BMW|Mercedes|Audi|Hyundai|KIA|Nissan|Chevrolet|Volkswagen|Mazda|Lexus|Jeep|Suzuki)\b',
+        # Invoice / header fields
+        'invoice_no': r'\b(?:PI|Invoice|Proforma\s*Invoice)[\s#:\-]*([A-Z0-9-]+)\b',
+        'date': r'\b(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\b',
+        'tax_id': r'(?:Tax\s*ID\s*No\.?|Tax\s*ID)[:\s]*([A-Z0-9-]+)',
+        'vat_reg': r'(?:VAT\s*Reg\.?.*?)[:\s]*([A-Z0-9-]+)',
+        'vat_amount': r'VAT[\s:]*([\d,]+\.?\d{0,2})',
+        'gross_value': r'Gross\s*Value[\s:]*([\d,]+\.?\d{0,2})',
+        'net_value': r'Net\s*Value[\s:]*([\d,]+\.?\d{0,2})',
+        'customer_name': r'(?:Customer\s*Name|Customer)[:\s]*([A-Z0-9 &,.\-\/]*)',
     }
     
     def __init__(self):
@@ -104,30 +107,7 @@ class DocumentExtractor:
 
                 doc.close()
 
-                # If text seems empty, attempt OCR on first pages
-                if (not raw_text or len(raw_text.strip()) < 20) and HAS_OCR and HAS_PYMUPDF:
-                    try:
-                        ocr_text = ""
-                        doc2 = fitz.open(file_path)
-                        pages_to_ocr = min(doc2.page_count, 3)
-                        for pnum in range(pages_to_ocr):
-                            pix = doc2[pnum].get_pixmap(dpi=300)
-                            img_bytes = pix.tobytes("png")
-                            image = Image.open(io.BytesIO(img_bytes))
-                            preprocessed = self._preprocess_image(image)
-                            ocr_text += pytesseract.image_to_string(preprocessed) + "\n"
-                        doc2.close()
-                        if ocr_text.strip():
-                            return {
-                                'success': True,
-                                'raw_text': ocr_text,
-                                'source': 'pdf_ocr',
-                                'pages_processed': min(num_pages, 10),
-                                'structured_data': self._parse_text(ocr_text)
-                            }
-                    except Exception as _e:
-                        logger.warning(f"PDF OCR fallback failed: {_e}")
-
+                # Return extracted text from PDF via PyMuPDF (no OCR fallback)
                 return {
                     'success': True,
                     'raw_text': raw_text,
@@ -204,39 +184,30 @@ class DocumentExtractor:
             }
     
     def _extract_from_image(self, file_path: str) -> Dict[str, Any]:
-        """Extract text from image using OCR"""
-        if not HAS_OCR:
+        """Extract text from image files.
+        OCR is intentionally disabled in this deployment. This method will not
+        attempt pytesseract-based OCR. Instead, it returns guidance to the
+        caller to provide a PDF or text-based document for extraction.
+        """
+        try:
+            if HAS_PIL:
+                try:
+                    image = Image.open(file_path)
+                    image_size = image.size
+                except Exception:
+                    image_size = None
+            else:
+                image_size = None
+
             return {
                 'success': False,
-                'error': 'pytesseract is not installed. Please install it: pip install pytesseract'
-            }
-        
-        try:
-            image = Image.open(file_path)
-            
-            # Image preprocessing for better OCR results
-            preprocessed = self._preprocess_image(image)
-            
-            # Extract text using Tesseract
-            raw_text = pytesseract.image_to_string(preprocessed)
-            
-            if not raw_text.strip():
-                raw_text = pytesseract.image_to_string(image)
-            
-            return {
-                'success': True,
-                'raw_text': raw_text,
-                'source': 'image_ocr',
-                'image_size': image.size,
-                'structured_data': self._parse_text(raw_text)
+                'error': 'OCR disabled: image-to-text extraction is not available. Please provide a PDF or text-based document instead.',
+                'source': 'image_no_ocr',
+                'image_size': image_size
             }
         except Exception as e:
-            logger.error(f"Image OCR error: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'source': 'image_ocr'
-            }
+            logger.error(f"Image handling error: {str(e)}")
+            return {'success': False, 'error': str(e), 'source': 'image_no_ocr'}
     
     def _preprocess_image(self, image: 'Image') -> 'Image':
         """Preprocess image for better OCR results"""
@@ -292,46 +263,154 @@ class DocumentExtractor:
         return composed_text, amounts
 
     def _parse_text(self, raw_text: str) -> Dict[str, Any]:
-        """Parse raw text to extract structured data"""
-        structured = {}
-        
-        # Extract phone numbers
-        phones = re.findall(self.PATTERNS['phone'], raw_text)
+        """Parse raw text to extract structured data with enhanced header and items detection."""
+        structured: Dict[str, Any] = {}
+
+        # Normalize newlines and strip common repeated whitespace
+        text = re.sub(r'\r\n|\r', '\n', raw_text)
+        text = re.sub(r'\t', ' ', text)
+
+        # Extract header fields using patterns
+        def _first_match(key):
+            try:
+                m = re.search(self.PATTERNS[key], text, re.IGNORECASE | re.MULTILINE)
+                return m.group(1).strip() if m else None
+            except Exception:
+                return None
+
+        invoice_no = _first_match('invoice_no')
+        if invoice_no:
+            structured['invoice_no'] = invoice_no
+
+        date = _first_match('date')
+        if date:
+            structured['date'] = date
+
+        tax_id = _first_match('tax_id') or _first_match('vat_reg')
+        if tax_id:
+            structured['tax_id'] = tax_id
+
+        vat_amount = _first_match('vat_amount')
+        if vat_amount:
+            structured['vat_amount'] = self._parse_amount_str(vat_amount)
+
+        gross_value = _first_match('gross_value')
+        if gross_value:
+            structured['gross_value'] = self._parse_amount_str(gross_value)
+
+        net_value = _first_match('net_value')
+        if net_value:
+            structured['net_value'] = self._parse_amount_str(net_value)
+
+        customer = _first_match('customer_name')
+        if customer:
+            structured['customer_name'] = customer
+
+        # Extract emails, phones, plates and amounts (general)
+        phones = re.findall(self.PATTERNS['phone'], text)
         if phones:
             structured['phone_numbers'] = [self._clean_phone(p) for p in phones]
-        
-        # Extract emails
-        emails = re.findall(self.PATTERNS['email'], raw_text)
+
+        emails = re.findall(self.PATTERNS['email'], text)
         if emails:
-            structured['emails'] = emails
-        
-        # Extract vehicle plates
-        plates = re.findall(self.PATTERNS['plate'], raw_text)
+            structured['emails'] = list(dict.fromkeys(emails))
+
+        plates = re.findall(self.PATTERNS['plate'], text)
         if plates:
             structured['vehicle_plates'] = [self._clean_plate(p) for p in plates]
-        
-        # Extract vehicle makes
-        makes = re.findall(self.PATTERNS['vehicle_make'], raw_text)
+
+        makes = re.findall(self.PATTERNS['vehicle_make'], text)
         if makes:
             structured['vehicle_makes'] = list(set(makes))
-        
-        # Extract currency amounts
-        amounts = re.findall(self.PATTERNS['currency_amount'], raw_text)
+
+        # Extract items and table-like structures
+        items = self._extract_items(text)
+        if items:
+            structured['items'] = items
+
+        # Extract general currency amounts
+        amounts = re.findall(self.PATTERNS['currency_amount'], text)
         if amounts:
             parsed_amounts = []
             for a in amounts:
                 parsed = self._parse_amount_str(a)
                 if parsed is not None:
                     parsed_amounts.append(parsed)
-            if parsed_amounts:
-                structured['amounts'] = parsed_amounts
-            else:
-                structured['amounts'] = []
-        
-        # Extract common service keywords
-        structured['keywords'] = self._extract_keywords(raw_text)
-        
+            structured['amounts'] = parsed_amounts
+
+        # Extract common service keywords and a likely service description
+        structured['keywords'] = self._extract_keywords(text)
+        # Heuristic: service_description = first line containing any service keyword
+        for ln in text.splitlines():
+            for kw in structured['keywords']:
+                if kw in ln.lower():
+                    structured['service_description'] = ln.strip()
+                    break
+            if structured.get('service_description'):
+                break
+
         return structured
+
+    def _extract_items(self, text: str) -> list:
+        """Heuristic extraction of line items from invoice-like text.
+        Returns a list of dicts: {description, qty, rate, value, code}
+        """
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        items = []
+        amount_re = re.compile(r'([\d,]+\.?\d{0,2})')
+
+        for idx, line in enumerate(lines):
+            # Skip header lines
+            if re.search(r'^(proforma|invoice|customer|address|tel|fax|email|tax|vat|page)\b', line, re.I):
+                continue
+
+            # If line has both letters and digits and looks like item description/code
+            if re.search(r'[A-Za-z]', line) and re.search(r'\d', line):
+                # Look for amounts on the same line
+                amounts = amount_re.findall(line.replace(',', ''))
+                qty = None
+                rate = None
+                value = None
+                code = None
+
+                # Attempt to find an item code pattern like A01218 or numeric codes
+                code_match = re.search(r'\b([A-Z0-9]{3,}[\/-]?[A-Z0-9]*)\b', line)
+                if code_match:
+                    code = code_match.group(1)
+
+                # If amounts found on the same line, guess last is value
+                if amounts:
+                    nums = [self._parse_amount_str(a) for a in amounts if self._parse_amount_str(a) is not None]
+                    if nums:
+                        value = nums[-1]
+                        if len(nums) >= 2:
+                            rate = nums[-2]
+                        if len(nums) >= 3:
+                            qty = nums[-3]
+
+                # Otherwise look ahead in next 2 lines for numeric columns
+                if not value:
+                    look_ahead = ' '.join(lines[idx:idx+3])
+                    nums = amount_re.findall(look_ahead.replace(',', ''))
+                    nums = [self._parse_amount_str(n) for n in nums if self._parse_amount_str(n) is not None]
+                    if nums:
+                        value = nums[-1]
+                        if len(nums) >= 2:
+                            rate = nums[-2]
+                        if len(nums) >= 3:
+                            qty = nums[-3]
+
+                items.append({
+                    'description': line,
+                    'code': code,
+                    'qty': qty,
+                    'rate': rate,
+                    'value': value,
+                })
+
+        # Filter out false positives (lines with no numeric value)
+        filtered = [it for it in items if it.get('value') is not None or it.get('qty') is not None]
+        return filtered
     
     def _clean_phone(self, phone: str) -> str:
         """Normalize phone number"""

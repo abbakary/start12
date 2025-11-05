@@ -249,28 +249,12 @@ class InvoiceExtractor:
 
 def extract_text_from_image(image_path: str) -> str:
     """
-    Extract text from image file (requires OCR capability).
-    Currently supports basic image-to-text conversion.
-    
-    Args:
-        image_path: Path to image file
-    
-    Returns:
-        Extracted text
+    Image text extraction is disabled (OCR not used). This function will
+    return an empty string and log a warning. If you need text extraction
+    from images, enable an OCR solution or provide PDF/text documents.
     """
-    try:
-        from PIL import Image
-        import pytesseract
-        
-        image = Image.open(image_path)
-        text = pytesseract.image_to_string(image)
-        return text
-    except ImportError:
-        logger.warning("pytesseract not installed - OCR functionality unavailable")
-        return ""
-    except Exception as e:
-        logger.error(f"Error extracting text from image: {str(e)}")
-        return ""
+    logger.warning('OCR disabled: extract_text_from_image called but OCR is not enabled')
+    return ""
 
 
 def process_invoice_extraction(document_scan) -> Dict:
@@ -289,22 +273,172 @@ def process_invoice_extraction(document_scan) -> Dict:
     try:
         # Try to extract text from file
         if document_scan.file.name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')):
-            text = extract_text_from_image(document_scan.file.path)
+            # OCR disabled — instruct user to upload a PDF or text-based document
+            logger.warning('Image upload detected but OCR is disabled — extraction aborted')
+            return {'error': 'Image extraction disabled. Please upload a PDF or text-based document.'}
         else:
-            # Assume text-based file (PDF might need special handling)
+            # If it's a PDF, attempt binary-based extraction
             try:
-                text = document_scan.file.read().decode('utf-8')
-            except Exception:
-                logger.warning(f"Could not read file as text: {document_scan.file.name}")
+                # Prefer using PDF extraction utilities instead of raw decode
+                from tracker.utils.document_extraction import DocumentExtractor
+                dext = DocumentExtractor()
+                # Save uploaded file to a temporary path and extract
+                tmp_path = None
+                try:
+                    tmp_path = document_scan.file.path
+                except Exception:
+                    # Fallback: write content to a temp file
+                    import tempfile
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.' + document_scan.file.name.split('.')[-1])
+                    tmp.write(document_scan.file.read())
+                    tmp.close()
+                    tmp_path = tmp.name
+
+                result = dext.extract_from_file(tmp_path)
+                if result.get('success'):
+                    text = result.get('raw_text', '')
+                else:
+                    logger.warning(f"Document extraction failed: {result.get('error')}")
+                    return {'error': result.get('error', 'Extraction failed')}
+            except Exception as e:
+                logger.warning(f"Could not extract file using PDF extractor: {e}")
+                try:
+                    text = document_scan.file.read().decode('utf-8')
+                except Exception:
+                    logger.warning(f"Could not read file as text: {document_scan.file.name}")
+                    return {'error': 'Could not extract text from document'}
         
-        if not text:
-            return {'error': 'Could not extract text from document'}
-        
-        # Extract all fields
-        extracted_data = extractor.extract_all(text)
-        extracted_data['raw_text'] = text[:5000]  # Store first 5000 chars
-        
-        return extracted_data
+        # If we used the DocumentExtractor earlier (result variable), merge its structured output
+        merged_result = None
+        try:
+            if 'result' in locals() and isinstance(result, dict) and result.get('success'):
+                doc_struct = result.get('structured_data', {}) or {}
+                # Use InvoiceExtractor to get field-level parsing and service template matching
+                invoice_fields = extractor.extract_all(text)
+
+                # Merge doc_struct into invoice_fields, preferring invoice_fields but filling gaps
+                merged = dict(invoice_fields)
+                for k, v in doc_struct.items():
+                    if not merged.get(k) and v:
+                        merged[k] = v
+                    elif isinstance(v, list) and isinstance(merged.get(k), list):
+                        # combine unique
+                        merged[k] = list(dict.fromkeys(merged.get(k) + v))
+
+                # Normalize and enrich fields
+                merged['raw_text'] = text[:10000]
+
+                # Extract code no if present
+                if not merged.get('code_no'):
+                    m_code = re.search(r'Code\s*No\s*[:\-]?\s*([A-Z0-9-]+)', text, re.IGNORECASE)
+                    if m_code:
+                        merged['code_no'] = m_code.group(1).strip()
+
+                # Extract reference and map to plate if reference contains 'FOR T' or similar
+                if not merged.get('reference'):
+                    m_ref = re.search(r'Reference\s*[:\-]?\s*([A-Z0-9\s-]{3,30})', text, re.IGNORECASE)
+                    if m_ref:
+                        merged['reference'] = m_ref.group(1).strip()
+
+                # Heuristic: if reference contains 'FOR T' or starts with 'FOR ' take trailing token as plate
+                ref_val = merged.get('reference')
+                if ref_val and not merged.get('plate_number'):
+                    m_for = re.search(r'FOR\s+([A-Z0-9\s]+)', ref_val, re.IGNORECASE)
+                    if m_for:
+                        merged['plate_number'] = m_for.group(1).strip()
+
+                # Ensure vehicle plate from doc_struct if available
+                if not merged.get('plate_number') and doc_struct.get('vehicle_plates'):
+                    merged['plate_number'] = doc_struct.get('vehicle_plates')[0]
+
+                # Consolidate items: prefer invoice_fields items, fall back to doc_struct or DocumentExtractor
+                items = []
+                if isinstance(merged.get('items'), list):
+                    items = merged.get('items')
+                elif isinstance(doc_struct.get('items'), list):
+                    items = doc_struct.get('items')
+                else:
+                    try:
+                        # Use DocumentExtractor fallback
+                        from tracker.utils.document_extraction import DocumentExtractor
+                        dext_local = DocumentExtractor()
+                        items = dext_local._extract_items(text)
+                    except Exception:
+                        items = []
+
+                # Normalize item numeric fields
+                normalized_items = []
+                from decimal import Decimal, InvalidOperation
+                for idx, it in enumerate(items, start=1):
+                    code = (it.get('code') or it.get('item_code') or '').strip()
+                    desc = (it.get('description') or it.get('desc') or '').strip()
+                    qty = it.get('qty')
+                    rate = it.get('rate') or it.get('rate_tsh')
+                    value = it.get('value') or it.get('amount') or it.get('value_tsh')
+
+                    def _to_decimal(v):
+                        try:
+                            if v is None:
+                                return None
+                            if isinstance(v, (int, float, Decimal)):
+                                return Decimal(str(v))
+                            s = str(v).replace(',', '').strip()
+                            return Decimal(s)
+                        except (InvalidOperation, Exception):
+                            return None
+
+                    qty_d = _to_decimal(qty)
+                    rate_d = _to_decimal(rate)
+                    value_d = _to_decimal(value)
+
+                    normalized_items.append({
+                        'line_no': idx,
+                        'code': code or None,
+                        'description': desc or None,
+                        'qty': qty_d,
+                        'unit': it.get('unit') or None,
+                        'rate': rate_d,
+                        'value': value_d,
+                    })
+
+                if normalized_items:
+                    merged['items'] = normalized_items
+
+                # Try to extract totals (net, VAT, gross) using regex
+                try:
+                    m_vat = re.search(r'VAT\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_vat:
+                        merged['vat_amount'] = m_vat.group(1).replace(',', '').strip()
+                    m_net = re.search(r'Net\s*Value\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_net:
+                        merged['net_value'] = m_net.group(1).replace(',', '').strip()
+                    m_gross = re.search(r'Gross\s*Value\s*[:\s]*([\d,]+\.?\d{0,2})', text, re.IGNORECASE)
+                    if m_gross:
+                        merged['gross_value'] = m_gross.group(1).replace(',', '').strip()
+                except Exception:
+                    pass
+
+                # Attempt to match service template if not already matched
+                service_desc = merged.get('service_description') or merged.get('item_name') or merged.get('description')
+                if service_desc:
+                    match = extractor.match_service_template(service_desc)
+                    if match:
+                        merged['matched_service'] = match[0]
+                        merged['estimated_minutes'] = match[1]
+
+                merged_result = merged
+            else:
+                # No DocumentExtractor result; fall back to InvoiceExtractor output
+                extracted_data = extractor.extract_all(text)
+                extracted_data['raw_text'] = text[:5000]
+                merged_result = extracted_data
+        except Exception as e:
+            logger.warning(f"Error merging extraction results: {e}")
+            extracted_data = extractor.extract_all(text)
+            extracted_data['raw_text'] = text[:5000]
+            merged_result = extracted_data
+
+        return merged_result
     
     except Exception as e:
         logger.error(f"Error processing invoice extraction: {str(e)}")

@@ -2,6 +2,13 @@ from pathlib import Path
 import os
 import pymysql
 
+# Apply compatibility monkeypatch for Django template Context on Python 3.14+
+# Importing tracker.patches.django_compat applies the safe __copy__ at startup.
+try:
+    from tracker.patches import django_compat  # noqa: F401
+except Exception:
+    pass
+
 # Install MySQL driver
 pymysql.install_as_MySQLdb()
 

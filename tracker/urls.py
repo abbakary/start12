@@ -142,6 +142,7 @@ urlpatterns = [
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
     # Document upload endpoint
     path("api/documents/upload/", views_documents.upload_document, name="api_documents_upload"),
+    path("api/documents/<int:doc_id>/status/", views_documents.get_document_status, name="api_documents_status"),
 
     # Start Order and Started Orders Dashboard
     path("api/orders/start/", views_start_order.api_start_order, name="api_start_order"),

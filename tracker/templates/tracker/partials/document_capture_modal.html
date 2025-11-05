@@ -369,7 +369,7 @@ class DocumentCaptureModal {
     uploadDocument() {
         const vehiclePlate = document.getElementById('vehiclePlate').value.trim();
         const fileInput = document.getElementById('documentFile');
-        const docType = document.querySelector('input[name="document_type"]:checked').value;
+        const docType = 'invoice';
         const customerPhone = document.getElementById('customerPhone').value.trim();
 
         if (!vehiclePlate) {

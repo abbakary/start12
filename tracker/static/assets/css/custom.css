@@ -399,6 +399,63 @@ input[type="checkbox"].visually-hidden:checked + label.service-offer {
     align-items: center;
 }
 
+/* Simple top-right toast notifications (Fusion) */
+.fusion-toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1060;
+    pointer-events: none;
+}
+
+.fusion-toast {
+    pointer-events: auto;
+    min-width: 220px;
+    max-width: 380px;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    transform: translateX(10px);
+    opacity: 1;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.fusion-toast__message {
+    flex: 1 1 auto;
+    font-size: 0.95rem;
+    line-height: 1.2;
+    color: inherit;
+}
+
+.fusion-toast__close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 0.5rem;
+    opacity: 0.85;
+}
+
+.fusion-toast--hide {
+    opacity: 0;
+    transform: translateX(12px);
+}
+
+.fusion-toast--success { background: #00AC46; }
+.fusion-toast--error { background: #dc3545; }
+.fusion-toast--info { background: #0d6efd; }
+.fusion-toast--warning { background: #FFAE1A; color: #222; }
+
 .form-check-label i {
     margin-right: 8px;
 }

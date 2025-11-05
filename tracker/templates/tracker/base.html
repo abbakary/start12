@@ -507,6 +507,28 @@
         });
     </script>
 
+    <script>
+        // Provide lightweight no-op stubs for optional external chart libraries when offline
+        if (typeof window.echarts === 'undefined') {
+            window.echarts = {
+                init: function() {
+                    return {
+                        setOption: function() {},
+                        resize: function() {},
+                        off: function() {},
+                        on: function() {},
+                        dispose: function() {}
+                    };
+                }
+            };
+        }
+        if (typeof window.Chart === 'undefined') {
+            window.Chart = function() {
+                return { destroy: function() {}, update: function() {} };
+            };
+        }
+    </script>
+
     {% block extra_js %}{% endblock %}
 
     <!-- Document Capture Modal -->

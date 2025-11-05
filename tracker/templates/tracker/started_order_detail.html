@@ -67,6 +67,17 @@
               <i class="fa fa-car me-2"></i>Vehicle Info
             </button>
             {% endif %}
+
+            <!-- Upload Invoice for this order -->
+            <button type="button" id="uploadInvoiceBtn" class="btn btn-secondary btn-lg">
+              <i class="fa fa-file-upload me-2"></i>Upload Invoice
+            </button>
+
+            <!-- Edit Order Details (services) -->
+            <button type="button" id="editOrderDetailsBtn" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#editOrderDetailsModal">
+              <i class="fa fa-list me-2"></i>Edit Order Details
+            </button>
+
             <form method="post" class="d-inline m-0">
               {% csrf_token %}
               <input type="hidden" name="action" value="complete_order">
@@ -75,6 +86,83 @@
               </button>
             </form>
           </div>
+
+          <!-- Edit Order Details Modal -->
+          <div class="modal fade" id="editOrderDetailsModal" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                  <h5 class="modal-title"><i class="fa fa-list me-2"></i>Edit Order Details</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="orderDetailsForm" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_order_details">
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">Select Services</label>
+                      <div id="orderServicesContainer" class="row g-2">Loading services...</div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">Estimated Duration (minutes)</label>
+                      <input type="number" name="estimated_duration" id="orderEstimatedDuration" class="form-control" value="{{ order.estimated_duration|default:'' }}" min="0">
+                    </div>
+                    <div class="mb-2 text-muted small">Selected services will be appended to the order description for quick reference.</div>
+                  </div>
+                  <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <script>
+            // Open document modal and attach upload to this order
+            document.getElementById('uploadInvoiceBtn').addEventListener('click', function(){
+              // set order id on global docModal instance
+              docModal.orderId = {{ order.id }};
+              // prefill vehicle plate if available
+              const plateEl = document.getElementById('vehiclePlate');
+              if (plateEl) plateEl.value = '{{ vehicle.plate_number|default:"" }}';
+              // reset file input and UI
+              document.getElementById('documentFile').value = '';
+              document.getElementById('fileNameDisplay').classList.add('d-none');
+              document.getElementById('extractionResults').classList.add('d-none');
+              document.getElementById('extractionError').classList.add('d-none');
+              document.getElementById('applyExtractionToOrderBtn').classList.add('d-none');
+
+              const modal = new bootstrap.Modal(document.getElementById('documentCaptureModal'));
+              modal.show();
+            });
+
+            // Populate services in Edit Order Details modal
+            document.getElementById('editOrderDetailsBtn').addEventListener('click', function(){
+              const container = document.getElementById('orderServicesContainer');
+              container.innerHTML = 'Loading...';
+              fetch('{% url "tracker:api_service_types" %}', { method: 'GET', headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }})
+                .then(r => r.json())
+                .then(data => {
+                  container.innerHTML = '';
+                  const existingDesc = `{{ order.description|default:'' }}`.toLowerCase();
+                  if (Array.isArray(data.service_types)) {
+                    data.service_types.forEach(svc => {
+                      const id = 'svc_edit_' + svc.name.replace(/[^A-Za-z0-9_]/g,'_');
+                      const checked = existingDesc.indexOf(svc.name.toLowerCase()) !== -1 ? 'checked' : '';
+                      const col = document.createElement('div'); col.className = 'col-md-6';
+                      col.innerHTML = `<div class="form-check"><input class="form-check-input" type="checkbox" id="${id}" name="services" value="${svc.name}" ${checked}><label class="form-check-label" for="${id}">${svc.name} <span class="text-muted small">(${svc.estimated_minutes || 0}m)</span></label></div>`;
+                      container.appendChild(col);
+                    });
+                  } else {
+                    container.innerHTML = '<div class="text-muted">No services available</div>';
+                  }
+                })
+                .catch(err => { container.innerHTML = '<div class="text-danger">Failed to load services</div>'; console.error(err); });
+            });
+
+            // No-op: form will submit and be handled by server-side POST handler
+          </script>
         </div>
       </div>
     </div>

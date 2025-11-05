@@ -140,6 +140,8 @@ urlpatterns = [
 
     # Document-related quick start (keep quick-start integration)
     path("api/orders/quick-start/", views_documents.start_quick_order, name="api_quick_start_order"),
+    # Document upload endpoint
+    path("api/documents/upload/", views_documents.upload_document, name="api_documents_upload"),
 
     # Start Order and Started Orders Dashboard
     path("api/orders/start/", views_start_order.api_start_order, name="api_start_order"),

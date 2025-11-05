@@ -307,45 +307,72 @@ def dashboard(request: HttpRequest):
         out_of_stock_count = InventoryItem.objects.filter(quantity=0).count()
         
         # Revenue aggregation from extracted documents
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal
+        from django.db.models import Sum
         from tracker.models import DocumentExtraction
 
         total_revenue = Decimal('0')
         revenue_this_month = Decimal('0')
+        total_vat = Decimal('0')
+        vat_this_month = Decimal('0')
+        total_gross = Decimal('0')
+        gross_this_month = Decimal('0')
+        revenue_by_branch = {}
         try:
-            all_amounts = DocumentExtraction.objects.exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
-            for a in all_amounts:
-                if not a:
-                    continue
-                # Normalize string
-                try:
-                    a_str = str(a)
-                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
-                    if a_str == '':
-                        continue
-                    val = Decimal(a_str)
-                    total_revenue += val
-                except (InvalidOperation, Exception):
-                    continue
+            sums = DocumentExtraction.objects.aggregate(
+                total_net=Sum('net_value'),
+                total_vat=Sum('vat_amount'),
+                total_gross=Sum('gross_value')
+            )
+            if sums.get('total_net'):
+                total_revenue = Decimal(sums.get('total_net'))
+            if sums.get('total_vat'):
+                total_vat = Decimal(sums.get('total_vat'))
+            if sums.get('total_gross'):
+                total_gross = Decimal(sums.get('total_gross'))
 
-            # This month
             month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            month_amounts = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
-            for a in month_amounts:
-                if not a:
-                    continue
+            month_sums = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).aggregate(
+                month_net=Sum('net_value'),
+                month_vat=Sum('vat_amount'),
+                month_gross=Sum('gross_value')
+            )
+            if month_sums.get('month_net'):
+                revenue_this_month = Decimal(month_sums.get('month_net'))
+            if month_sums.get('month_vat'):
+                vat_this_month = Decimal(month_sums.get('month_vat'))
+            if month_sums.get('month_gross'):
+                gross_this_month = Decimal(month_sums.get('month_gross'))
+
+            # Revenue by branch and currency (aggregate net_value grouped by document.order.branch and currency)
+            rows = DocumentExtraction.objects.select_related('document__order__branch').values_list('net_value', 'extracted_currency', 'document__order__branch__name')
+            for net_val, currency, branch_name in rows:
                 try:
-                    a_str = str(a)
-                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
-                    if a_str == '':
-                        continue
-                    val = Decimal(a_str)
-                    revenue_this_month += val
-                except (InvalidOperation, Exception):
+                    amount = Decimal(net_val) if net_val is not None else Decimal('0')
+                except Exception:
                     continue
+                cur = (currency or '').strip().upper()
+                b = branch_name or 'Unassigned'
+                if b not in revenue_by_branch:
+                    revenue_by_branch[b] = {}
+                if cur not in revenue_by_branch[b]:
+                    revenue_by_branch[b][cur] = Decimal('0')
+                revenue_by_branch[b][cur] += amount
+
+            # Build TSHS-specific view
+            revenue_by_branch_tsh = {}
+            for b, cols in revenue_by_branch.items():
+                amount = cols.get('TSHS') or cols.get('TSH') or cols.get('TZS') or Decimal('0')
+                revenue_by_branch_tsh[b] = amount
         except Exception:
             total_revenue = Decimal('0')
             revenue_this_month = Decimal('0')
+            total_vat = Decimal('0')
+            vat_this_month = Decimal('0')
+            total_gross = Decimal('0')
+            gross_this_month = Decimal('0')
+            revenue_by_branch = {}
+            revenue_by_branch_tsh = {}
 
         metrics = {
             'total_orders': total_orders,
@@ -362,6 +389,10 @@ def dashboard(request: HttpRequest):
             'average_order_value': average_order_value,
             'total_revenue': total_revenue,
             'revenue_this_month': revenue_this_month,
+            'total_vat': total_vat,
+            'vat_this_month': vat_this_month,
+            'total_gross': total_gross,
+            'gross_this_month': gross_this_month,
             'upcoming_appointments': list(upcoming_appointments.values('id', 'customer__full_name', 'created_at')),
             'top_customers': list(top_customers.values('id', 'full_name', 'order_count', 'phone', 'email', 'total_spent', 'latest_order_date', 'registration_date')),
             'recent_orders': list(orders_qs.select_related("customer").exclude(status="completed").order_by("-created_at").values('id', 'customer__full_name', 'status', 'created_at')[:10]),
@@ -397,7 +428,7 @@ def dashboard(request: HttpRequest):
     # Use completed_today from metrics if available, otherwise calculate fresh
     completed_today_final = metrics.get('completed_today', completed_today)
     
-    context = {**metrics, "recent_orders": recent_orders, "completed_today": completed_today_final, "current_time": timezone.now()}
+    context = {**metrics, "recent_orders": recent_orders, "completed_today": completed_today_final, "current_time": timezone.now(), "revenue_by_branch": revenue_by_branch, "revenue_by_branch_tsh": revenue_by_branch_tsh}
     # render after charts
 
     # Build sales_chart_json (monthly Orders vs Completed for last 12 months)

@@ -300,6 +300,9 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary d-none" id="applyExtractionToOrderBtn" onclick="docModal.applyExtractionToCurrentOrder()">
+                    <i class="fa fa-check me-2"></i>Apply to Current Order
+                </button>
                 <button type="button" class="btn btn-success d-none" id="createOrderFromDocBtn" onclick="docModal.createOrder()">
                     <i class="fa fa-plus me-2"></i>Create Order from Data
                 </button>
@@ -315,6 +318,8 @@ class DocumentCaptureModal {
         this.currentTab = 0;
         this.extractionData = null;
         this.documentId = null;
+        this.extractionId = null;
+        this.orderId = null; // when set, uploads attach to this order
         this.setupEventListeners();
     }
 
@@ -339,6 +344,10 @@ class DocumentCaptureModal {
         });
 
         fileInput.addEventListener('change', () => this.updateFileName());
+
+        // Wire up apply-to-order button if present
+        const applyBtn = document.getElementById('applyExtractionToOrderBtn');
+        if (applyBtn) applyBtn.addEventListener('click', () => this.applyExtractionToCurrentOrder());
     }
 
     updateFileName() {
@@ -396,24 +405,38 @@ class DocumentCaptureModal {
 
         this.nextTab();
 
-        // Use DocumentHandler for upload
+        // Use DocumentHandler for upload. Pass orderId if present to attach to existing order
         documentHandler.uploadAndExtract(
             fileInput.files[0],
             vehiclePlate,
             customerPhone,
-            docType
+            docType,
+            this.orderId
         ).then(result => {
             uploadBtn.disabled = false;
             uploadBtn.innerHTML = '<i class="fa fa-upload me-2"></i>Upload & Extract';
 
             if (result.success) {
                 this.documentId = result.documentId;
+                this.extractionId = result.extractionId || null;
                 this.extractionData = result.extractedData;
                 this.displayExtractionResults({
                     document_id: result.documentId,
                     extracted_data: result.extractedData,
                     matches: result.matches
                 });
+
+                // If this modal was opened to attach to an existing order, expose apply button
+                if (this.orderId && this.extractionId) {
+                    document.getElementById('applyExtractionToOrderBtn').classList.remove('d-none');
+                }
+
+                // If backend auto-applied extraction, notify and reload
+                if (result.auto_applied) {
+                    documentHandler.showNotification('Extraction auto-applied to order', 'success', 2500);
+                    setTimeout(() => { window.location.href = `/orders/started/${result.applied_order_id}/`; }, 800);
+                    return;
+                }
             } else {
                 this.showError(result.error || 'Upload failed');
             }
@@ -515,6 +538,59 @@ class DocumentCaptureModal {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa fa-plus me-2"></i>Create Order from Data';
             }
+        });
+    }
+
+    applyExtractionToCurrentOrder() {
+        if (!this.orderId || !this.extractionId) {
+            alert('No order or extraction available to apply');
+            return;
+        }
+
+        // Determine extracted plate (try multiple keys)
+        const extractedPlateRaw = (this.extractionData && (this.extractionData.plate_number || this.extractionData.vehicle_plate || this.extractionData.extracted_vehicle_plate)) || (document.getElementById('extractedVehiclePlate') && document.getElementById('extractedVehiclePlate').textContent) || '';
+        const orderPlateRaw = (document.getElementById('vehiclePlate') && document.getElementById('vehiclePlate').value) || '';
+
+        const normalize = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const extractedPlate = normalize(extractedPlateRaw);
+        const orderPlate = normalize(orderPlateRaw);
+
+        let applyVehiclePlate = true;
+        if (extractedPlate && orderPlate && extractedPlate !== orderPlate) {
+            // Ask user whether to update the order plate to the invoice plate
+            const msg = `Invoice plate detected: "${extractedPlateRaw}"\nOrder plate: "${orderPlateRaw}"\n\nClick OK to update the order plate to the invoice plate and apply extracted data. Click Cancel to keep the existing order plate and apply other extracted fields.`;
+            applyVehiclePlate = confirm(msg);
+        }
+
+        const fields = ['customer_name', 'customer_phone', 'service_description', 'item_name', 'quantity', 'amount'];
+        if (applyVehiclePlate && extractedPlate) fields.push('vehicle_plate');
+
+        const payload = {
+            order_id: Number(this.orderId),
+            extraction_id: Number(this.extractionId),
+            apply_fields: fields
+        };
+
+        fetch('{% url "tracker:api_apply_extraction" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : (function(){ const c=document.cookie.split(';').map(s=>s.trim()).find(s=>s.startsWith('csrftoken=')); return c?c.split('=')[1]:''; })())
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                documentHandler.showNotification('Extraction applied to order', 'success', 2000);
+                setTimeout(() => location.reload(), 700);
+            } else {
+                documentHandler.showNotification('Error applying extraction: ' + (data.error || ''), 'error', 4000);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            documentHandler.showNotification('Error applying extraction', 'error', 4000);
         });
     }
 }

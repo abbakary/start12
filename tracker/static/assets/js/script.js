@@ -462,50 +462,41 @@
     document.addEventListener('click', function(e){ if(box && !box.contains(e.target) && (!inputDesktop || e.target!==inputDesktop)){ hideBox(); }});
   })();
 
-  // Centered Action Popup
+  // Centered Action Popup (replaced with toast notifications)
   function ensureActionPopup(){
-    var overlay = document.getElementById('actionPopup');
-    if(overlay) return overlay;
-    overlay = document.createElement('div');
-    overlay.className='action-popup-overlay'; overlay.id='actionPopup'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-live','polite'); overlay.setAttribute('aria-atomic','true');
-    overlay.innerHTML = '<div class="action-popup-card action-popup-enter">\
-      <div class="action-popup-icon" id="actionPopupIcon"></div>\
-      <div class="action-popup-title" id="actionPopupTitle"></div>\
-      <p class="action-popup-message" id="actionPopupMessage"></p>\
-    </div>';
-    document.body.appendChild(overlay);
-    return overlay;
+    // No-op: replaced by toast notifications via documentHandler.showNotification
+    return null;
   }
   function showActionPopup(type, title, message){
     try{
-      var overlay=ensureActionPopup();
-      var icon=overlay.querySelector('#actionPopupIcon');
-      var ttl=overlay.querySelector('#actionPopupTitle');
-      var msg=overlay.querySelector('#actionPopupMessage');
-      icon.className='action-popup-icon '+(type==='success'?'success':'error');
-      icon.innerHTML = type==='success' ? '<i class="fa fa-check"></i>' : '<i class="fa fa-times"></i>';
-      ttl.textContent = title || (type==='success' ? 'Success' : 'Something went wrong');
-      msg.textContent = message || '';
-      overlay.style.display='flex';
-      clearTimeout(window.__actionPopupTimer);
-      window.__actionPopupTimer=setTimeout(function(){ overlay.style.display='none'; }, 2600);
-      overlay.onclick=function(e){ if(e.target===overlay){ overlay.style.display='none'; }}
-    }catch(e){}
+      var level = (type||'').indexOf('success')>-1 ? 'success' : ((type||'').indexOf('error')>-1 ? 'error' : 'info');
+      var text = (title ? (title + ': ') : '') + (message || '');
+      if (typeof documentHandler !== 'undefined' && documentHandler && typeof documentHandler.showNotification === 'function'){
+        documentHandler.showNotification(text, level, 4000);
+      } else {
+        // fallback to console if documentHandler not available
+        console.log('[notification]', level, text);
+      }
+    }catch(e){ console.error(e); }
   }
   window.flash = function(level, message){
     var t = (level||'').indexOf('success')>-1 ? 'success' : 'error';
     showActionPopup(t, t==='success'?'Success':'Failed', message||'');
   };
   document.addEventListener('DOMContentLoaded', function(){
-    // Upgrade any bootstrap alert messages to popup
+    // Upgrade any bootstrap alert messages to toast notifications
     var alerts = document.querySelectorAll('.alert');
     if(alerts && alerts.length){
       var last = alerts[alerts.length-1];
       var isSuccess = last.className.indexOf('alert-success')>-1;
       var isDanger = last.className.indexOf('alert-danger')>-1 || last.className.indexOf('alert-error')>-1;
-      var type = isSuccess ? 'success' : (isDanger ? 'error' : 'success');
+      var type = isSuccess ? 'success' : (isDanger ? 'error' : 'info');
       var msg = last.textContent.trim();
-      showActionPopup(type, isSuccess?'Success':'Notice', msg);
+      if (typeof documentHandler !== 'undefined' && documentHandler && typeof documentHandler.showNotification === 'function'){
+        documentHandler.showNotification(msg, type, 4000);
+      } else {
+        showActionPopup(type, isSuccess?'Success':'Notice', msg);
+      }
     }
   });
 

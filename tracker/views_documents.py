@@ -22,14 +22,17 @@ logger = logging.getLogger(__name__)
 @login_required
 @require_http_methods(["POST"])
 def upload_document(request):
-    """Upload a document, optionally attach to an existing order, and run extraction.
+    """Upload a document, optionally attach to an existing order, and start async extraction.
 
     Accepts FormData with:
     - file (required)
     - vehicle_plate (optional)
     - customer_phone (optional)
-    - document_type (optional)
+    - document_type (optional, defaults to 'invoice')
     - order_id (optional) — attach the upload to this order
+
+    Returns immediately with document_id and extraction_id.
+    Extraction happens in background. Use get_document_status to poll progress.
     """
     try:
         file = request.FILES.get('file')
@@ -60,192 +63,21 @@ def upload_document(request):
                 file_name=file.name,
                 file_size=file.size,
                 file_mime_type=file.content_type,
-                extraction_status='processing'
+                extraction_status='pending'
             )
 
-            # Run extraction using existing utility
-            try:
-                extracted_data = process_invoice_extraction(doc_scan)
+        # Start async extraction in background thread
+        from .utils.async_extraction import start_extraction_task
+        start_extraction_task(doc_scan.id)
 
-                if 'error' not in extracted_data:
-                    # Persist extraction record
-                    from decimal import Decimal, InvalidOperation
-                    def _to_decimal_safe(v):
-                        try:
-                            if v is None:
-                                return None
-                            if isinstance(v, (int, float, Decimal)):
-                                return Decimal(str(v))
-                            s = str(v).replace(',', '').strip()
-                            return Decimal(s)
-                        except (InvalidOperation, Exception):
-                            return None
-
-                    extraction = DocumentExtraction.objects.create(
-                        document=doc_scan,
-                        extracted_customer_name=extracted_data.get('customer_name') or extracted_data.get('extracted_customer_name'),
-                        extracted_customer_phone=extracted_data.get('customer_phone') or extracted_data.get('extracted_customer_phone'),
-                        extracted_customer_email=extracted_data.get('customer_email') or extracted_data.get('extracted_customer_email'),
-                        extracted_vehicle_plate=extracted_data.get('plate_number') or extracted_data.get('extracted_vehicle_plate'),
-                        extracted_order_description=extracted_data.get('service_description') or extracted_data.get('extracted_order_description'),
-                        extracted_item_name=extracted_data.get('item_name'),
-                        extracted_brand=extracted_data.get('brand'),
-                        extracted_quantity=extracted_data.get('quantity') or extracted_data.get('extracted_quantity'),
-                        extracted_amount=extracted_data.get('amount') or extracted_data.get('extracted_amount'),
-                        code_no=extracted_data.get('code_no') or extracted_data.get('customer_code'),
-                        reference=extracted_data.get('reference'),
-                        net_value=_to_decimal_safe(extracted_data.get('net_value') or extracted_data.get('net')),
-                        vat_amount=_to_decimal_safe(extracted_data.get('vat_amount') or extracted_data.get('vat')),
-                        gross_value=_to_decimal_safe(extracted_data.get('gross_value') or extracted_data.get('gross')),
-                        extracted_data_json=extracted_data,
-                        confidence_overall=extracted_data.get('confidence_overall', 80),
-                    )
-
-                    # Persist items
-                    try:
-                        items = extracted_data.get('items') or extracted_data.get('structured_data', {}).get('items')
-                        if items and isinstance(items, list):
-                            from decimal import Decimal
-                            for idx, it in enumerate(items, start=1):
-                                code = it.get('code') or it.get('item_code') or None
-                                desc = it.get('description') or it.get('desc') or it.get('description_full') or str(it.get('description') or '')
-                                qty = it.get('qty') or it.get('quantity')
-                                unit = it.get('unit') or it.get('type')
-                                rate = it.get('rate')
-                                value = it.get('value')
-
-                                def _to_decimal(v):
-                                    try:
-                                        if v is None:
-                                            return None
-                                        if isinstance(v, (int, float, Decimal)):
-                                            return Decimal(str(v))
-                                        v_clean = str(v).replace(',', '').strip()
-                                        return Decimal(v_clean)
-                                    except Exception:
-                                        return None
-
-                                qty_d = _to_decimal(qty)
-                                rate_d = _to_decimal(rate)
-                                value_d = _to_decimal(value)
-
-                                DocumentExtractionItem.objects.create(
-                                    extraction=extraction,
-                                    line_no=idx,
-                                    code=code,
-                                    description=desc,
-                                    qty=qty_d,
-                                    unit=unit,
-                                    rate=rate_d,
-                                    value=value_d,
-                                )
-                    except Exception as e:
-                        logger.warning(f"Failed to save extracted items: {e}")
-
-                    doc_scan.extraction_status = 'completed'
-                    doc_scan.extracted_at = timezone.now()
-                    doc_scan.save()
-
-                    # Try to build matches: check vehicle and customer existence
-                    matches = {}
-                    if extracted_data.get('plate_number'):
-                        v = Vehicle.objects.filter(plate_number__iexact=extracted_data.get('plate_number'), customer__branch=user_branch).select_related('customer').first()
-                        if v:
-                            matches['vehicle'] = {'id': v.id, 'plate': v.plate_number, 'make': v.make, 'model': v.model}
-                            matches['customer'] = {'id': v.customer.id, 'name': v.customer.full_name, 'phone': v.customer.phone}
-
-                    # Auto-apply extraction to order if confidence high and order attached
-                    auto_applied = False
-                    applied_order_id = None
-                    try:
-                        conf = int(extraction.confidence_overall or 0)
-                    except Exception:
-                        conf = 0
-                    AUTO_APPLY_THRESHOLD = 85
-                    if order and conf >= AUTO_APPLY_THRESHOLD:
-                        try:
-                            # Apply extraction fields to order (similar to api_apply_extraction_to_order)
-                            apply_fields = ['customer_name', 'customer_phone', 'service_description', 'item_name', 'brand', 'quantity', 'amount', 'vehicle_plate', 'vehicle_make', 'vehicle_model']
-
-                            # Ensure customer
-                            customer = order.customer
-                            if not customer:
-                                cust_name = extraction.extracted_customer_name or extracted_data.get('customer_name') or f'Customer {order.order_number}'
-                                cust_phone = extraction.extracted_customer_phone or extracted_data.get('customer_phone') or ''
-                                customer = Customer.objects.create(branch=user_branch, full_name=cust_name, phone=cust_phone, customer_type='personal')
-                                order.customer = customer
-                            else:
-                                if extraction.extracted_customer_name and 'customer_name' in apply_fields:
-                                    customer.full_name = extraction.extracted_customer_name
-                                if extraction.extracted_customer_phone and 'customer_phone' in apply_fields:
-                                    customer.phone = extraction.extracted_customer_phone
-                                if extraction.extracted_customer_email and 'customer_email' in apply_fields:
-                                    customer.email = extraction.extracted_customer_email
-                                customer.save()
-
-                            # Vehicle handling
-                            extracted_plate = (extraction.extracted_vehicle_plate or extracted_data.get('plate_number') or extracted_data.get('vehicle_plate') or '').strip()
-                            if extracted_plate:
-                                plate_norm = extracted_plate.upper()
-                                existing_vehicle = Vehicle.objects.filter(plate_number__iexact=plate_norm, customer__branch=user_branch).select_related('customer').first()
-                                if existing_vehicle:
-                                    vehicle_obj = existing_vehicle
-                                    if vehicle_obj.customer != customer:
-                                        vehicle_obj.customer = customer
-                                        vehicle_obj.save()
-                                    order.vehicle = vehicle_obj
-                                else:
-                                    vehicle_obj = Vehicle.objects.create(
-                                        customer=customer,
-                                        plate_number=plate_norm,
-                                        make=(extraction.extracted_vehicle_make or extracted_data.get('vehicle_make') or ''),
-                                        model=(extraction.extracted_vehicle_model or extracted_data.get('vehicle_model') or ''),
-                                        vehicle_type=(extracted_data.get('vehicle_type') or '')
-                                    )
-                                    order.vehicle = vehicle_obj
-
-                            # Order fields
-                            if extraction.extracted_order_description:
-                                order.description = extraction.extracted_order_description
-                            if extraction.extracted_item_name:
-                                order.item_name = extraction.extracted_item_name
-                            if extraction.extracted_brand:
-                                order.brand = extraction.extracted_brand
-                            if extraction.extracted_quantity:
-                                try:
-                                    order.quantity = int(extraction.extracted_quantity)
-                                except Exception:
-                                    pass
-                            # amount -> gross_value or amount
-                            if extraction.extracted_amount:
-                                try:
-                                    from decimal import Decimal
-                                    amt = Decimal(str(extraction.extracted_amount))
-                                    if hasattr(order, 'gross_value'):
-                                        order.gross_value = amt
-                                    elif hasattr(order, 'amount'):
-                                        order.amount = amt
-                                except Exception:
-                                    pass
-
-                            order.save()
-                            auto_applied = True
-                            applied_order_id = order.id
-                        except Exception as e:
-                            logger.warning(f"Auto-apply failed: {e}")
-
-                    return JsonResponse({'success': True, 'document_id': doc_scan.id, 'extraction_id': extraction.id, 'extracted_data': extracted_data, 'matches': matches, 'auto_applied': auto_applied, 'applied_order_id': applied_order_id, 'confidence': extraction.confidence_overall})
-                else:
-                    doc_scan.extraction_status = 'failed'
-                    doc_scan.extraction_error = extracted_data.get('error')
-                    doc_scan.save()
-                    return JsonResponse({'success': False, 'error': extracted_data.get('error')}, status=400)
-            except Exception as e:
-                doc_scan.extraction_status = 'failed'
-                doc_scan.extraction_error = str(e)
-                doc_scan.save()
-                logger.error(f"Error extracting document: {str(e)}")
-                return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        # Return immediately with document info
+        return JsonResponse({
+            'success': True,
+            'document_id': doc_scan.id,
+            'extraction_id': None,  # Will be populated after extraction completes
+            'status': 'pending',
+            'message': 'Invoice uploaded and queued for processing'
+        })
 
     except Exception as e:
         logger.error(f"Error uploading document: {str(e)}")

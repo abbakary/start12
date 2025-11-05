@@ -492,6 +492,13 @@ class DocumentExtraction(models.Model):
     extracted_amount = models.CharField(max_length=32, blank=True, null=True)
     extracted_currency = models.CharField(max_length=16, blank=True, null=True)
 
+    # Invoice metadata
+    code_no = models.CharField(max_length=64, blank=True, null=True, help_text='Customer / code number from invoice (Code No)')
+    reference = models.CharField(max_length=64, blank=True, null=True, help_text='Reference field from invoice (often plate)')
+    net_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    vat_amount = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+    gross_value = models.DecimalField(max_digits=18, decimal_places=2, null=True, blank=True)
+
     # Confidence scores (0-100)
     confidence_overall = models.PositiveIntegerField(default=0)
     extracted_data_json = models.JSONField(default=dict, blank=True)

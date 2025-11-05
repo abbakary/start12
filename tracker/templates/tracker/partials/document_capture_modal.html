@@ -430,6 +430,13 @@ class DocumentCaptureModal {
                 if (this.orderId && this.extractionId) {
                     document.getElementById('applyExtractionToOrderBtn').classList.remove('d-none');
                 }
+
+                // If backend auto-applied extraction, notify and reload
+                if (result.auto_applied) {
+                    documentHandler.showNotification('Extraction auto-applied to order', 'success', 2500);
+                    setTimeout(() => { window.location.href = `/orders/started/${result.applied_order_id}/`; }, 800);
+                    return;
+                }
             } else {
                 this.showError(result.error || 'Upload failed');
             }

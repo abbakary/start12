@@ -91,6 +91,80 @@ def _perform_extraction(doc_scan: DocumentScan):
 
 @login_required
 @require_http_methods(["GET"])
+def get_document_status(request, doc_id):
+    """Get extraction status and progress for a document.
+
+    Returns:
+        {
+            'success': bool,
+            'status': 'pending|processing|completed|failed',
+            'progress': 0-100,
+            'message': 'status message',
+            'document_id': id,
+            'extraction_id': id or null,
+            'extracted_data': {} or null,
+            'confidence': percentage or null,
+            'matches': {} or null
+        }
+    """
+    try:
+        user_branch = get_user_branch(request.user)
+        doc_scan = get_object_or_404(DocumentScan, id=int(doc_id))
+
+        # Check authorization
+        if doc_scan.order and doc_scan.order.branch != user_branch:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        if doc_scan.uploaded_by.userprofile.branch != user_branch:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+        from .utils.async_extraction import get_extraction_progress
+        progress_info = get_extraction_progress(doc_scan.id)
+
+        # If extraction completed, get the extracted data
+        extracted_data = None
+        extraction_id = None
+        confidence = None
+        matches = None
+
+        if progress_info['status'] == 'completed':
+            try:
+                extraction = DocumentExtraction.objects.get(document=doc_scan)
+                extraction_id = extraction.id
+                confidence = extraction.confidence_overall
+                extracted_data = extraction.extracted_data_json
+
+                # Try to build matches
+                if extracted_data and extracted_data.get('plate_number'):
+                    v = Vehicle.objects.filter(
+                        plate_number__iexact=extracted_data.get('plate_number'),
+                        customer__branch=user_branch
+                    ).select_related('customer').first()
+                    if v:
+                        matches = {
+                            'vehicle': {'id': v.id, 'plate': v.plate_number, 'make': v.make, 'model': v.model},
+                            'customer': {'id': v.customer.id, 'name': v.customer.full_name, 'phone': v.customer.phone}
+                        }
+            except DocumentExtraction.DoesNotExist:
+                pass
+
+        return JsonResponse({
+            'success': True,
+            'status': progress_info['status'],
+            'progress': progress_info['progress'],
+            'message': progress_info['message'],
+            'document_id': doc_scan.id,
+            'extraction_id': extraction_id,
+            'extracted_data': extracted_data,
+            'confidence': confidence,
+            'matches': matches or {}
+        })
+    except Exception as e:
+        logger.error(f"Error getting document status: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
 def get_document_extraction(request, doc_id):
     return JsonResponse({'success': False, 'error': 'Document extraction retrieval disabled'}, status=410)
 

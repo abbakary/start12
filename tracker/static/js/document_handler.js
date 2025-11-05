@@ -30,13 +30,14 @@ class DocumentHandler {
      * @param {string} documentType - Type of document
      * @returns {Promise} Extraction result
      */
-    async uploadAndExtract(file, vehiclePlate, customerPhone = '', documentType = 'quotation') {
+    async uploadAndExtract(file, vehiclePlate, customerPhone = '', documentType = 'quotation', orderId = null) {
         try {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('vehicle_plate', vehiclePlate);
             formData.append('customer_phone', customerPhone);
             formData.append('document_type', documentType);
+            if (orderId) formData.append('order_id', String(orderId));
 
             const response = await fetch('/api/documents/upload/', {
                 method: 'POST',

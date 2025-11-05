@@ -285,6 +285,37 @@
   </div>
 </div>
 
+<!-- Show revenue by branch for TSHS -->
+<div class="container-fluid mb-3">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h6 class="card-title mb-3">Revenue by Branch (TSHS)</h6>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>Branch</th>
+              <th class="text-end">Net (TSHS)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for branch, cols in revenue_by_branch.items %}
+              {% with amount=cols.TSHS|default:0 %}
+                <tr>
+                  <td>{{ branch }}</td>
+                  <td class="text-end">{{ amount|floatformat:2|intcomma }}</td>
+                </tr>
+              {% endwith %}
+            {% empty %}
+                <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% if user.is_superuser %}
 <div class="container-fluid">
   <div class="card shadow-sm mb-3">

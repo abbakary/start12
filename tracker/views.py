@@ -307,45 +307,48 @@ def dashboard(request: HttpRequest):
         out_of_stock_count = InventoryItem.objects.filter(quantity=0).count()
         
         # Revenue aggregation from extracted documents
-        from decimal import Decimal, InvalidOperation
+        from decimal import Decimal
+        from django.db.models import Sum
         from tracker.models import DocumentExtraction
 
         total_revenue = Decimal('0')
         revenue_this_month = Decimal('0')
+        total_vat = Decimal('0')
+        vat_this_month = Decimal('0')
+        total_gross = Decimal('0')
+        gross_this_month = Decimal('0')
         try:
-            all_amounts = DocumentExtraction.objects.exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
-            for a in all_amounts:
-                if not a:
-                    continue
-                # Normalize string
-                try:
-                    a_str = str(a)
-                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
-                    if a_str == '':
-                        continue
-                    val = Decimal(a_str)
-                    total_revenue += val
-                except (InvalidOperation, Exception):
-                    continue
+            sums = DocumentExtraction.objects.aggregate(
+                total_net=Sum('net_value'),
+                total_vat=Sum('vat_amount'),
+                total_gross=Sum('gross_value')
+            )
+            if sums.get('total_net'):
+                total_revenue = Decimal(sums.get('total_net'))
+            if sums.get('total_vat'):
+                total_vat = Decimal(sums.get('total_vat'))
+            if sums.get('total_gross'):
+                total_gross = Decimal(sums.get('total_gross'))
 
-            # This month
             month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            month_amounts = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).exclude(extracted_amount__isnull=True).exclude(extracted_amount__exact='').values_list('extracted_amount', flat=True)
-            for a in month_amounts:
-                if not a:
-                    continue
-                try:
-                    a_str = str(a)
-                    a_str = re.sub(r'[A-Za-z\$€£¥₹,\s]', '', a_str)
-                    if a_str == '':
-                        continue
-                    val = Decimal(a_str)
-                    revenue_this_month += val
-                except (InvalidOperation, Exception):
-                    continue
+            month_sums = DocumentExtraction.objects.filter(document__uploaded_at__gte=month_start).aggregate(
+                month_net=Sum('net_value'),
+                month_vat=Sum('vat_amount'),
+                month_gross=Sum('gross_value')
+            )
+            if month_sums.get('month_net'):
+                revenue_this_month = Decimal(month_sums.get('month_net'))
+            if month_sums.get('month_vat'):
+                vat_this_month = Decimal(month_sums.get('month_vat'))
+            if month_sums.get('month_gross'):
+                gross_this_month = Decimal(month_sums.get('month_gross'))
         except Exception:
             total_revenue = Decimal('0')
             revenue_this_month = Decimal('0')
+            total_vat = Decimal('0')
+            vat_this_month = Decimal('0')
+            total_gross = Decimal('0')
+            gross_this_month = Decimal('0')
 
         metrics = {
             'total_orders': total_orders,

@@ -26,14 +26,15 @@ class DocumentHandler {
     }
 
     /**
-     * Upload document and extract data
+     * Upload document and extract data (async with polling)
      * @param {File} file - Document file
      * @param {string} vehiclePlate - Vehicle plate number
      * @param {string} customerPhone - Customer phone number
      * @param {string} documentType - Type of document
+     * @param {number} orderId - Order ID if attaching to existing order
      * @returns {Promise} Extraction result
      */
-    async uploadAndExtract(file, vehiclePlate, customerPhone = '', documentType = 'quotation', orderId = null) {
+    async uploadAndExtract(file, vehiclePlate, customerPhone = '', documentType = 'invoice', orderId = null) {
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -42,7 +43,8 @@ class DocumentHandler {
             formData.append('document_type', documentType);
             if (orderId) formData.append('order_id', String(orderId));
 
-            const response = await fetch('/api/documents/upload/', {
+            // Upload file (returns immediately)
+            const uploadResponse = await fetch('/api/documents/upload/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': this.csrfToken
@@ -50,19 +52,32 @@ class DocumentHandler {
                 body: formData
             });
 
-            const data = await response.json();
-            
-            if (data.success) {
-                this.extractedData = data.extracted_data;
-                this.matchedRecords = data.matches || {};
+            const uploadData = await uploadResponse.json();
+
+            if (!uploadData.success) {
+                throw new Error(uploadData.error || 'Upload failed');
+            }
+
+            const documentId = uploadData.document_id;
+
+            // Poll for extraction completion
+            const extractionResult = await this._pollExtractionStatus(documentId, 120000); // 2 minute timeout
+
+            if (extractionResult.success) {
+                this.extractedData = extractionResult.extracted_data;
+                this.matchedRecords = extractionResult.matches || {};
                 return {
                     success: true,
-                    documentId: data.document_id,
-                    extractedData: data.extracted_data,
-                    matches: data.matches
+                    documentId: documentId,
+                    extractionId: extractionResult.extraction_id,
+                    extractedData: extractionResult.extracted_data,
+                    matches: extractionResult.matches,
+                    auto_applied: extractionResult.auto_applied,
+                    applied_order_id: extractionResult.applied_order_id,
+                    confidence: extractionResult.confidence
                 };
             } else {
-                throw new Error(data.error || 'Upload failed');
+                throw new Error(extractionResult.message || 'Extraction failed');
             }
         } catch (error) {
             console.error('Upload error:', error);
@@ -71,6 +86,70 @@ class DocumentHandler {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Poll extraction status until complete or timeout
+     * @param {number} documentId - Document ID
+     * @param {number} timeout - Timeout in milliseconds
+     * @returns {Promise} Final extraction status
+     */
+    async _pollExtractionStatus(documentId, timeout = 120000) {
+        const pollInterval = 1000; // Poll every 1 second
+        const startTime = Date.now();
+
+        while (Date.now() - startTime < timeout) {
+            try {
+                const response = await fetch(`/api/documents/${documentId}/status/`, {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': this.csrfToken
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Dispatch progress event for UI updates
+                    window.dispatchEvent(new CustomEvent('extractionProgress', {
+                        detail: {
+                            documentId,
+                            status: data.status,
+                            progress: data.progress,
+                            message: data.message
+                        }
+                    }));
+
+                    if (data.status === 'completed') {
+                        return {
+                            success: true,
+                            extraction_id: data.extraction_id,
+                            extracted_data: data.extracted_data,
+                            matches: data.matches,
+                            confidence: data.confidence,
+                            message: data.message
+                        };
+                    } else if (data.status === 'failed') {
+                        return {
+                            success: false,
+                            message: data.message || 'Extraction failed'
+                        };
+                    }
+                    // Continue polling if still processing
+                }
+            } catch (error) {
+                console.error('Status poll error:', error);
+                // Continue polling on error
+            }
+
+            // Wait before next poll
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+        }
+
+        return {
+            success: false,
+            message: 'Extraction timeout: processing took too long'
+        };
     }
 
     /**

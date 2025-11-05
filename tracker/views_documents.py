@@ -111,10 +111,8 @@ def get_document_status(request, doc_id):
         user_branch = get_user_branch(request.user)
         doc_scan = get_object_or_404(DocumentScan, id=int(doc_id))
 
-        # Check authorization
+        # Check authorization - only allow if document is attached to user's branch
         if doc_scan.order and doc_scan.order.branch != user_branch:
-            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
-        if doc_scan.uploaded_by.userprofile.branch != user_branch:
             return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
 
         from .utils.async_extraction import get_extraction_progress

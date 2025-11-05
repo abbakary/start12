@@ -266,7 +266,31 @@ def started_order_detail(request, order_id):
                 order.vehicle.model = request.POST.get('model', order.vehicle.model)
                 order.vehicle.vehicle_type = request.POST.get('vehicle_type', order.vehicle.vehicle_type)
                 order.vehicle.save()
-        
+
+        elif action == 'update_order_details':
+            # Update selected services and estimated duration
+            try:
+                services = request.POST.getlist('services') or []
+                est = request.POST.get('estimated_duration') or None
+                if services:
+                    # Append services to description (simple storage)
+                    svc_text = ', '.join(services)
+                    base_desc = order.description or ''
+                    # Remove previous Services: line if exists
+                    lines = [l for l in base_desc.split('\n') if not l.strip().lower().startswith('services:')]
+                    lines.append(f"Services: {svc_text}")
+                    order.description = '\n'.join([l for l in lines if l.strip()])
+                if est:
+                    try:
+                        order.estimated_duration = int(est)
+                    except Exception:
+                        pass
+                order.save()
+                # Redirect to refresh page and show changes
+                return redirect('tracker:started_order_detail', order_id=order.id)
+            except Exception as e:
+                logger.error(f"Error updating order details: {e}")
+
         elif action == 'upload_document':
             # Handle document upload and extraction
             if 'document' in request.FILES:

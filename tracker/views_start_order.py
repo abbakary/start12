@@ -441,12 +441,12 @@ def started_order_detail(request, order_id):
 def api_apply_extraction_to_order(request):
     """
     API endpoint to apply extracted data to an order.
-    
+
     POST body:
     {
         "order_id": 123,
         "extraction_id": 456,
-        "apply_fields": ["customer_name", "customer_phone", "service_description"]
+        "apply_fields": ["customer_name", "customer_phone", "service_description", "vehicle_plate"]
     }
     """
     try:
@@ -454,56 +454,101 @@ def api_apply_extraction_to_order(request):
         order_id = data.get('order_id')
         extraction_id = data.get('extraction_id')
         apply_fields = data.get('apply_fields', [])
-        
+
         user_branch = get_user_branch(request.user)
         order = get_object_or_404(Order, id=order_id, branch=user_branch)
         extraction = get_object_or_404(DocumentExtraction, id=extraction_id)
-        
+
         with transaction.atomic():
-            # Apply customer data
-            if 'customer_name' in apply_fields and extraction.extracted_customer_name:
-                order.customer.full_name = extraction.extracted_customer_name
-            if 'customer_phone' in apply_fields and extraction.extracted_customer_phone:
-                order.customer.phone = extraction.extracted_customer_phone
-            if 'customer_email' in apply_fields and extraction.extracted_customer_email:
-                order.customer.email = extraction.extracted_customer_email
-            
-            order.customer.save()
-            
-            # Apply vehicle data
-            if order.vehicle:
-                if 'vehicle_plate' in apply_fields and extraction.extracted_vehicle_plate:
-                    order.vehicle.plate_number = extraction.extracted_vehicle_plate
-                if 'vehicle_make' in apply_fields and extraction.extracted_vehicle_make:
-                    order.vehicle.make = extraction.extracted_vehicle_make
-                if 'vehicle_model' in apply_fields and extraction.extracted_vehicle_model:
-                    order.vehicle.model = extraction.extracted_vehicle_model
-                
-                order.vehicle.save()
-            
-            # Apply order data
-            if 'service_description' in apply_fields and extraction.extracted_order_description:
-                order.description = extraction.extracted_order_description
-            if 'item_name' in apply_fields and extraction.extracted_item_name:
-                order.item_name = extraction.extracted_item_name
-            if 'brand' in apply_fields and extraction.extracted_brand:
-                order.brand = extraction.extracted_brand
-            if 'quantity' in apply_fields and extraction.extracted_quantity:
+            # Ensure customer exists; if not, create from extraction
+            customer = order.customer
+            if not customer:
+                cust_name = extraction.extracted_customer_name or extraction.extracted_data_json.get('customer_name') or f'Customer {order.order_number}'
+                cust_phone = extraction.extracted_customer_phone or extraction.extracted_data_json.get('customer_phone') or ''
+                customer = Customer.objects.create(
+                    branch=user_branch,
+                    full_name=cust_name,
+                    phone=cust_phone,
+                    customer_type='personal'
+                )
+                order.customer = customer
+            else:
+                # Update existing customer fields
+                if 'customer_name' in apply_fields and (extraction.extracted_customer_name or extraction.extracted_data_json.get('customer_name')):
+                    customer.full_name = extraction.extracted_customer_name or extraction.extracted_data_json.get('customer_name')
+                if 'customer_phone' in apply_fields and (extraction.extracted_customer_phone or extraction.extracted_data_json.get('customer_phone')):
+                    customer.phone = extraction.extracted_customer_phone or extraction.extracted_data_json.get('customer_phone')
+                if 'customer_email' in apply_fields and (extraction.extracted_customer_email or extraction.extracted_data_json.get('customer_email')):
+                    customer.email = extraction.extracted_customer_email or extraction.extracted_data_json.get('customer_email')
+                customer.save()
+
+            # Ensure vehicle exists or match by plate
+            vehicle = order.vehicle
+            extracted_plate = (extraction.extracted_vehicle_plate or extraction.extracted_data_json.get('plate_number') or extraction.extracted_data_json.get('vehicle_plate') or '').strip()
+            if 'vehicle_plate' in apply_fields and extracted_plate:
+                # Normalize plate for lookup
+                plate_norm = extracted_plate.upper()
+                # Try to find existing vehicle in branch
+                existing_vehicle = Vehicle.objects.filter(plate_number__iexact=plate_norm, customer__branch=user_branch).select_related('customer').first()
+                if existing_vehicle:
+                    vehicle = existing_vehicle
+                    # attach to customer if different
+                    if vehicle.customer != customer:
+                        vehicle.customer = customer
+                        vehicle.save()
+                    order.vehicle = vehicle
+                else:
+                    # Create vehicle and attach
+                    vehicle = Vehicle.objects.create(
+                        customer=customer,
+                        plate_number=plate_norm,
+                        make=(extraction.extracted_vehicle_make or extraction.extracted_data_json.get('vehicle_make') or ''),
+                        model=(extraction.extracted_vehicle_model or extraction.extracted_data_json.get('vehicle_model') or ''),
+                        vehicle_type=(extraction.extracted_data_json.get('vehicle_type') or '')
+                    )
+                    order.vehicle = vehicle
+
+            # Update vehicle fields if we have a vehicle object
+            if order.vehicle and order.vehicle.id:
+                v = order.vehicle
+                if 'vehicle_make' in apply_fields and (extraction.extracted_vehicle_make or extraction.extracted_data_json.get('vehicle_make')):
+                    v.make = extraction.extracted_vehicle_make or extraction.extracted_data_json.get('vehicle_make')
+                if 'vehicle_model' in apply_fields and (extraction.extracted_vehicle_model or extraction.extracted_data_json.get('vehicle_model')):
+                    v.model = extraction.extracted_vehicle_model or extraction.extracted_data_json.get('vehicle_model')
+                v.save()
+
+            # Apply order data fields
+            if 'service_description' in apply_fields and (extraction.extracted_order_description or extraction.extracted_data_json.get('service_description')):
+                order.description = extraction.extracted_order_description or extraction.extracted_data_json.get('service_description')
+            if 'item_name' in apply_fields and (extraction.extracted_item_name or extraction.extracted_data_json.get('item_name')):
+                order.item_name = extraction.extracted_item_name or extraction.extracted_data_json.get('item_name')
+            if 'brand' in apply_fields and (extraction.extracted_brand or extraction.extracted_data_json.get('brand')):
+                order.brand = extraction.extracted_brand or extraction.extracted_data_json.get('brand')
+            if 'quantity' in apply_fields and (extraction.extracted_quantity or extraction.extracted_data_json.get('quantity')):
                 try:
-                    order.quantity = int(extraction.extracted_quantity)
+                    order.quantity = int(extraction.extracted_quantity or extraction.extracted_data_json.get('quantity'))
                 except (ValueError, TypeError):
                     pass
-            if 'amount' in apply_fields and extraction.extracted_amount:
-                pass  # Amount handling (if needed in order model)
-            
+            # Amount handling if needed - storing to order.net_value if field exists
+            if 'amount' in apply_fields and (extraction.extracted_amount or extraction.extracted_data_json.get('amount')):
+                try:
+                    from decimal import Decimal
+                    amt = extraction.extracted_amount or extraction.extracted_data_json.get('amount')
+                    if hasattr(order, 'gross_value'):
+                        order.gross_value = Decimal(str(amt)).quantize(Decimal('0.01'))
+                    elif hasattr(order, 'amount'):
+                        order.amount = Decimal(str(amt)).quantize(Decimal('0.01'))
+                except Exception:
+                    pass
+
             order.save()
-        
+
         return JsonResponse({
             'success': True,
             'message': 'Extraction data applied to order successfully',
             'order_id': order.id
         })
-    
+
     except Exception as e:
         logger.error(f"Error applying extraction: {str(e)}")
         return JsonResponse({
